@@ -76,30 +76,18 @@ func (ex *Exchange) CancelOrder(c echo.Context) error {
 	id, _ := strconv.Atoi(idStr)
 
 	ob := ex.orderbook[MarketETH]
-
-	for _, limit := range ob.Asks() {
-		for _, order := range limit.Orders {
-			if order.ID == int64(id) {
-				ob.CancelOrder(order)
-				return c.JSON(http.StatusOK, map[string]any{
-					"msg": "order canceled",
-				})
-			}
-		}
+	order, ok := ob.Orders[int64(id)]
+	if !ok {
+		return c.JSON(http.StatusBadRequest, map[string]any{
+			"msg": "order not found",
+		})
 	}
+	ob.CancelOrder(order)
 
-	for _, limit := range ob.Bids() {
-		for _, order := range limit.Orders {
-			if order.ID == int64(id) {
-				ob.CancelOrder(order)
-				return c.JSON(http.StatusOK, map[string]any{
-					"msg": "order canceled",
-				})
-			}
-		}
-	}
+	return c.JSON(http.StatusOK, map[string]any{
+		"msg": "order canceled",
+	})
 
-	return nil
 }
 
 func (ex *Exchange) handleGetBook(c echo.Context) error {
@@ -148,6 +136,12 @@ func (ex *Exchange) handleGetBook(c echo.Context) error {
 	return c.JSON(http.StatusOK, orderBookData)
 }
 
+type MatchedOrder struct {
+	Price float64
+	Size  float64
+	ID    int64
+}
+
 func (ex *Exchange) handlePlaceOrder(c echo.Context) error {
 	var placeOrderData PlaceOrderRequest
 	if err := json.NewDecoder(c.Request().Body).Decode(&placeOrderData); err != nil {
@@ -168,8 +162,27 @@ func (ex *Exchange) handlePlaceOrder(c echo.Context) error {
 
 	if placeOrderData.Type == MarketOrder {
 		matches := ob.PlaceMarketOrder(order)
+		matchedOreders := make([]*MatchedOrder, len(matches))
+
+		isBid := false
+		if order.Bid {
+			isBid = true
+		}
+
+		for i := 0; i < len(matchedOreders); i++ {
+			id := matches[i].Bid.ID
+			if isBid {
+				id = matches[i].Ask.ID
+			}
+			matchedOreders[i] = &MatchedOrder{
+				Price: matches[i].Price,
+				Size:  matches[i].SizeFilled,
+				ID:    id,
+			}
+		}
+
 		return c.JSON(200, map[string]any{
-			"matches": len(matches),
+			"matches": matchedOreders,
 		})
 	}
 
