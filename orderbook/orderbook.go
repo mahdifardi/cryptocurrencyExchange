@@ -16,6 +16,7 @@ type Match struct {
 
 type Order struct {
 	ID        int64
+	UserId    int64
 	Size      float64
 	Bid       bool
 	Limit     *Limit
@@ -36,9 +37,10 @@ func (o *Order) IsFilled() bool {
 	return o.Size == 0.0
 }
 
-func NewOrder(bid bool, size float64) *Order {
+func NewOrder(bid bool, size float64, userID int64) *Order {
 	return &Order{
 		ID:        int64(rand.Intn(1000000)),
+		UserId:    userID,
 		Size:      size,
 		Bid:       bid,
 		Timestamp: time.Now().UnixNano(),
