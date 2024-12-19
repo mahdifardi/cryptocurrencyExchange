@@ -67,6 +67,58 @@ func (c *Client) PlaceMarketOrder(p *PlaceOrderParams) (*server.PlaceOrderRespon
 
 }
 
+func (c *Client) GetBestBid() (float64, error) {
+	bestPrice := 0.0
+	e := fmt.Sprintf("%s/book/ETH/bid", Endpoint)
+
+	req, err := http.NewRequest(http.MethodGet, e, nil)
+
+	if err != nil {
+		return bestPrice, err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return bestPrice, err
+	}
+	priceResp := &server.PriceResponse{}
+
+	if err := json.NewDecoder(resp.Body).Decode(priceResp); err != nil {
+		return bestPrice, err
+	}
+
+	bestPrice = priceResp.Price
+
+	return bestPrice, nil
+
+}
+
+func (c *Client) GetBestAsk() (float64, error) {
+	bestPrice := 0.0
+	e := fmt.Sprintf("%s/book/ETH/ask", Endpoint)
+
+	req, err := http.NewRequest(http.MethodGet, e, nil)
+
+	if err != nil {
+		return bestPrice, err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return bestPrice, err
+	}
+	priceResp := &server.PriceResponse{}
+
+	if err := json.NewDecoder(resp.Body).Decode(priceResp); err != nil {
+		return bestPrice, err
+	}
+
+	bestPrice = priceResp.Price
+
+	return bestPrice, nil
+
+}
+
 func (c *Client) CancelOrder(orderId int64) error {
 	e := fmt.Sprintf("%s/order/%d", Endpoint, orderId)
 	req, err := http.NewRequest(http.MethodDelete, e, nil)
