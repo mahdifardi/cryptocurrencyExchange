@@ -93,9 +93,16 @@ func StartServer() {
 	user2 := NewUser(pk2, 9999)
 	ex.Users[user2.ID] = user2
 
-	e.GET("/book/:market", ex.handleGetBook)
+	pk3 := "a453611d9419d0e56f499079478fd72c37b251a94bfde4d19872c44cf65386e3"
+	user3 := NewUser(pk3, 7777)
+	ex.Users[user2.ID] = user3
+
 	e.POST("/order", ex.handlePlaceOrder)
 	e.DELETE("/order/:id", ex.CancelOrder)
+
+	e.GET("/book/:market", ex.handleGetBook)
+	e.GET("/book/:market/bid", ex.handleGetBestBid)
+	e.GET("/book/:market/ask", ex.handleGetBestAsk)
 
 	address := "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E"
 	balance, _ := ex.Client.BalanceAt(context.Background(), common.HexToAddress(address), nil)
@@ -203,6 +210,42 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 		PrivateKey: pk,
 		orderbook:  orderbooks,
 	}, nil
+}
+
+type PriceResponse struct {
+	Price float64
+}
+
+func (ex *Exchange) handleGetBestBid(c echo.Context) error {
+	market := Market(c.Param("market"))
+	ob := ex.orderbook[market]
+
+	if len(ob.Bids()) == 0 {
+		return fmt.Errorf("the bids are empty")
+	}
+	bestBidPrice := ob.Bids()[0].Price
+
+	pr := PriceResponse{
+		Price: bestBidPrice,
+	}
+	return c.JSON(http.StatusOK, pr)
+
+}
+
+func (ex *Exchange) handleGetBestAsk(c echo.Context) error {
+	market := Market(c.Param("market"))
+	ob := ex.orderbook[market]
+
+	if len(ob.Asks()) == 0 {
+		return fmt.Errorf("the asks are empty")
+	}
+	bestAskPrice := ob.Asks()[0].Price
+
+	pr := PriceResponse{
+		Price: bestAskPrice,
+	}
+	return c.JSON(http.StatusOK, pr)
+
 }
 
 func (ex *Exchange) CancelOrder(c echo.Context) error {
