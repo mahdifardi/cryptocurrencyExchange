@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,9 +34,10 @@ type (
 	OrderType string
 
 	Exchange struct {
+		mu         sync.RWMutex
 		Client     *ethclient.Client
-		Users      map[int64]*User // orderId => User
-		orders     map[int64]int64 //orderid -> userid
+		Users      map[int64]*User              // orderId => User
+		Orders     map[int64][]*orderbook.Order // ordeers map a user to his orders
 		PrivateKey *ecdsa.PrivateKey
 		orderbook  map[Market]*orderbook.Orderbook
 	}
@@ -66,9 +68,10 @@ type (
 	}
 
 	MatchedOrder struct {
-		Price float64
-		Size  float64
-		ID    int64
+		UserId int64
+		Price  float64
+		Size   float64
+		ID     int64
 	}
 )
 
@@ -95,9 +98,10 @@ func StartServer() {
 
 	pk3 := "a453611d9419d0e56f499079478fd72c37b251a94bfde4d19872c44cf65386e3"
 	user3 := NewUser(pk3, 7777)
-	ex.Users[user2.ID] = user3
+	ex.Users[user3.ID] = user3
 
 	e.POST("/order", ex.handlePlaceOrder)
+	e.GET("/order/:userId", ex.handleGetOrders)
 	e.DELETE("/order/:id", ex.CancelOrder)
 
 	e.GET("/book/:market", ex.handleGetBook)
@@ -204,9 +208,10 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 	orderbooks[MarketETH] = orderbook.NewOrderbook()
 
 	return &Exchange{
+
 		Client:     client,
 		Users:      make(map[int64]*User),
-		orders:     make(map[int64]int64),
+		Orders:     make(map[int64][]*orderbook.Order),
 		PrivateKey: pk,
 		orderbook:  orderbooks,
 	}, nil
@@ -214,6 +219,35 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 
 type PriceResponse struct {
 	Price float64
+}
+
+func (ex *Exchange) handleGetOrders(c echo.Context) error {
+	userIdStr := c.Param("userId")
+	userId, err := strconv.Atoi(userIdStr)
+	if err != nil {
+		return err
+	}
+
+	ex.mu.Lock()
+	defer ex.mu.Unlock()
+	orderBookOrders := ex.Orders[int64(userId)]
+
+	orders := make([]Order, len(orderBookOrders))
+
+	for i := 0; i < len(orderBookOrders); i++ {
+		o := Order{
+			UserID:    orderBookOrders[i].UserId,
+			ID:        orderBookOrders[i].ID,
+			Price:     orderBookOrders[i].Limit.Price,
+			Size:      orderBookOrders[i].Size,
+			Bid:       orderBookOrders[i].Bid,
+			Timestamp: orderBookOrders[i].Timestamp,
+		}
+		orders[i] = o
+	}
+
+	// fmt.Printf("%+v", orders)
+	return c.JSON(http.StatusOK, orders)
 }
 
 func (ex *Exchange) handleGetBestBid(c echo.Context) error {
@@ -273,6 +307,7 @@ func (ex *Exchange) handleGetBook(c echo.Context) error {
 	market := c.Param("market")
 
 	ob, ok := ex.orderbook[Market(market)]
+
 	if !ok {
 		return c.JSON(http.StatusBadRequest, map[string]any{
 			"msg": "market not found",
@@ -331,13 +366,18 @@ func (ex *Exchange) handlePlaceMarketOrder(market Market, order *orderbook.Order
 	totalSizeFilled := 0.0
 	for i := 0; i < len(matchedOreders); i++ {
 		id := matches[i].Bid.ID
+		userId := matches[i].Bid.UserId
 		if isBid {
 			id = matches[i].Ask.ID
+			userId = matches[i].Ask.UserId
+
 		}
 		matchedOreders[i] = &MatchedOrder{
-			Price: matches[i].Price,
-			Size:  matches[i].SizeFilled,
-			ID:    id,
+			// UserId: order.UserId,
+			UserId: userId,
+			Price:  matches[i].Price,
+			Size:   matches[i].SizeFilled,
+			ID:     id,
 		}
 		totalSizeFilled += matches[i].SizeFilled
 		sumPrice += matches[i].Price
@@ -352,6 +392,9 @@ func (ex *Exchange) handlePlaceLimitOrder(market Market, price float64, order *o
 	ob := ex.orderbook[market]
 	ob.PlaceLimitOrder(price, order)
 
+	ex.mu.Lock()
+	ex.Orders[order.UserId] = append(ex.Orders[order.UserId], order)
+	ex.mu.Unlock()
 	// user, ok := ex.Users[order.UserId]
 	// if !ok {
 	// 	return fmt.Errorf("user not found: %d", user.ID)
@@ -399,10 +442,28 @@ func (ex *Exchange) handlePlaceOrder(c echo.Context) error {
 
 	//Market
 	if placeOrderData.Type == MarketOrder {
-		matches, _ := ex.handlePlaceMarketOrder(market, order)
+		matches, matchedOreders := ex.handlePlaceMarketOrder(market, order)
 
 		if err := ex.handleMatches(matches); err != nil {
 			return err
+		}
+
+		//delete the orders off the user wwhen filled
+		// for _, matchedOreder := range matchedOreders {
+		for j := 0; j < len(matchedOreders); j++ {
+			// userOrders :=  ex.Orders[matchedOreders[j].UserId]
+			for i := 0; i < len(ex.Orders[matchedOreders[j].UserId]); i++ {
+
+				// if the size is 0 ew can delete order
+				if ex.Orders[matchedOreders[j].UserId][i].IsFilled() {
+
+					if matchedOreders[j].ID == ex.Orders[matchedOreders[j].UserId][i].ID {
+						ex.Orders[matchedOreders[j].UserId][i] = ex.Orders[matchedOreders[j].UserId][len(ex.Orders[matchedOreders[j].UserId])-1]
+						ex.Orders[matchedOreders[j].UserId] = ex.Orders[matchedOreders[j].UserId][:len(ex.Orders[matchedOreders[j].UserId])-1]
+					}
+				}
+			}
+
 		}
 	}
 
