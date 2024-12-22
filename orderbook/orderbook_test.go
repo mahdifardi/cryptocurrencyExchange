@@ -72,32 +72,56 @@ func TestPlaceMultiMarketOrder(t *testing.T) {
 
 	buyOrderA := NewOrder(true, 5, 0)
 	buyOrderB := NewOrder(true, 8, 0)
-	buyOrderC := NewOrder(true, 10, 0)
+	buyOrderC := NewOrder(true, 1, 0)
 	buyOrderD := NewOrder(true, 1, 0)
 
 	ob.PlaceLimitOrder(5_000, buyOrderC)
 	ob.PlaceLimitOrder(5_000, buyOrderD)
 
-	ob.PlaceLimitOrder(10_000, buyOrderA)
 	ob.PlaceLimitOrder(9_000, buyOrderB)
+	ob.PlaceLimitOrder(10_000, buyOrderA)
 
-	assert(t, ob.BidTotalVolume(), 24.0)
+	assert(t, ob.BidTotalVolume(), 15.0)
 
-	sellOrder := NewOrder(false, 20, 0)
+	sellOrder := NewOrder(false, 10, 0)
 	matches := ob.PlaceMarketOrder(sellOrder)
 
-	assert(t, ob.BidTotalVolume(), 4.0)
-	assert(t, len(matches), 3)
-	assert(t, len(ob.bids), 1)
+	assert(t, ob.BidTotalVolume(), 5.0)
+	assert(t, len(matches), 2)
+	assert(t, len(ob.bids), 2)
 
 	fmt.Printf("%+v", matches)
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelAskOrder(t *testing.T) {
 	ob := NewOrderbook()
 
+	price := 10_000.0
+
+	sellOrder := NewOrder(false, 4, 0)
+	ob.PlaceLimitOrder(price, sellOrder)
+
+	assert(t, ob.AskTotalVolume(), 4.0)
+
+	assert(t, len(ob.Orders), 1)
+	ob.CancelOrder(sellOrder)
+	assert(t, len(ob.Orders), 0)
+	_, ok := ob.Orders[sellOrder.ID]
+	assert(t, ok, false)
+
+	assert(t, ob.AskTotalVolume(), 0.0)
+
+	_, ok = ob.AskLimits[price]
+	assert(t, ok, false)
+}
+
+func TestCancelBidOrder(t *testing.T) {
+	ob := NewOrderbook()
+
+	price := 10_000.0
+
 	buyOrder := NewOrder(true, 4, 0)
-	ob.PlaceLimitOrder(10_000, buyOrder)
+	ob.PlaceLimitOrder(price, buyOrder)
 
 	assert(t, ob.BidTotalVolume(), 4.0)
 
@@ -108,5 +132,28 @@ func TestCancelOrder(t *testing.T) {
 	assert(t, ok, false)
 
 	assert(t, ob.BidTotalVolume(), 0.0)
+
+	_, ok = ob.BidLimits[price]
+	assert(t, ok, false)
+}
+
+func TestLastMarketTrades(t *testing.T) {
+	ob := NewOrderbook()
+
+	price := 10_000.0
+
+	sellOrder := NewOrder(false, 10, 0)
+	ob.PlaceLimitOrder(price, sellOrder)
+
+	marketOrder := NewOrder(true, 10, 0)
+	matches := ob.PlaceMarketOrder(marketOrder)
+
+	assert(t, len(matches), 1)
+	assert(t, len(ob.Trades), 1)
+
+	trade := ob.Trades[0]
+	assert(t, trade.Price, price)
+	assert(t, trade.Bid, marketOrder.Bid)
+	assert(t, trade.Size, matches[0].SizeFilled)
 
 }
