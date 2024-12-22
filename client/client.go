@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/mahdifardi/cryptocurrencyExchange/orderbook"
 	"github.com/mahdifardi/cryptocurrencyExchange/server"
 )
 
@@ -27,6 +28,27 @@ type PlaceOrderParams struct {
 	// just ffor limit order
 	Price float64
 	Size  float64
+}
+
+func (c *Client) GetTrades(market string) ([]*orderbook.Trade, error) {
+	e := fmt.Sprintf("%s/trades/%s", Endpoint, market)
+	req, err := http.NewRequest(http.MethodGet, e, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	trades := []*orderbook.Trade{}
+	if err = json.NewDecoder(resp.Body).Decode(&trades); err != nil {
+		return nil, err
+	}
+
+	return trades, nil
+
 }
 
 func (c *Client) GetOrders(userId int64) (*server.GetOrdersResponse, error) {
