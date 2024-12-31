@@ -8,6 +8,27 @@ import (
 	"time"
 )
 
+type StopOrderState string
+
+const (
+	Pending   StopOrderState = "PENDING"
+	Triggered StopOrderState = "Triggered"
+	Canceled  StopOrderState = "Canceled"
+)
+
+type StopOrder struct {
+	ID     int64
+	UserId int64
+	Size   float64
+	Bid    bool
+	Limit  bool
+	// StopLimit *StopLimit
+	Timestamp int64
+	StopPrice float64
+	Price     float64
+	State     StopOrderState
+}
+
 type Trade struct {
 	Price     float64
 	Size      float64
@@ -55,11 +76,62 @@ func NewOrder(bid bool, size float64, userID int64) *Order {
 	}
 }
 
+type StopOrders []*StopOrder
+
+func (so StopOrders) Len() int           { return len(so) }
+func (so StopOrders) Swap(i, j int)      { so[i], so[j] = so[j], so[i] }
+func (so StopOrders) Less(i, j int) bool { return so[i].StopPrice < so[j].StopPrice }
+
 type Limit struct {
 	Price       float64
 	Orders      Orders
 	TotalVolume float64
 }
+
+// type StopLimit struct {
+// 	Price       float64
+// 	StopOrders  StopOrders
+// 	TotalVolume float64
+// }
+
+// type StopLimits []*StopLimit
+
+// type ByBestStopAsk struct{ StopLimits }
+
+// func (a ByBestStopAsk) Len() int { return len(a.StopLimits) }
+// func (a ByBestStopAsk) Swap(i, j int) {
+// 	a.StopLimits[i], a.StopLimits[j] = a.StopLimits[j], a.StopLimits[i]
+// }
+// func (a ByBestStopAsk) Less(i, j int) bool { return a.StopLimits[i].Price < a.StopLimits[j].Price }
+
+// type ByBestStopBid struct{ StopLimits }
+
+// func (b ByBestStopBid) Len() int { return len(b.StopLimits) }
+// func (b ByBestStopBid) Swap(i, j int) {
+// 	b.StopLimits[i], b.StopLimits[j] = b.StopLimits[j], b.StopLimits[i]
+// }
+// func (b ByBestStopBid) Less(i, j int) bool { return b.StopLimits[i].Price > b.StopLimits[j].Price }
+
+// func (sl *StopLimit) AddStopOrder(so *StopOrder) {
+// 	so.StopLimit = sl
+// 	sl.StopOrders = append(sl.StopOrders, so)
+// 	sl.TotalVolume += so.Size
+
+// }
+
+// func (sl *StopLimit) DeleteStopOrder(so *StopOrder) {
+// 	for i := 0; i < len(sl.StopOrders); i++ {
+// 		if sl.StopOrders[i] == so {
+// 			sl.StopOrders[i] = sl.StopOrders[len(sl.StopOrders)-1]
+// 			sl.StopOrders = sl.StopOrders[:len(sl.StopOrders)-1]
+// 		}
+// 	}
+
+// 	so.StopLimit = nil
+// 	sl.TotalVolume -= so.Size
+
+// 	sort.Sort(sl.StopOrders)
+// }
 
 type Limits []*Limit
 
@@ -170,6 +242,20 @@ func NewLimit(price float64) *Limit {
 	}
 }
 
+func NewStopOrder(bid, limit bool, size, price, stopPrice float64, userID int64) *StopOrder {
+	return &StopOrder{
+		ID:        int64(rand.Intn(1000000)),
+		UserId:    userID,
+		Size:      size,
+		Bid:       bid,
+		Limit:     limit,
+		Timestamp: time.Now().UnixNano(),
+		StopPrice: stopPrice,
+		Price:     price,
+		State:     Pending,
+	}
+}
+
 type Orderbook struct {
 	asks []*Limit
 	bids []*Limit
@@ -181,6 +267,9 @@ type Orderbook struct {
 	BidLimits map[float64]*Limit
 
 	Orders map[int64]*Order
+
+	stopLimitOrders  []*StopOrder
+	stopMarketOrders []*StopOrder
 }
 
 func NewOrderbook() *Orderbook {
@@ -192,6 +281,9 @@ func NewOrderbook() *Orderbook {
 		AskLimits: make(map[float64]*Limit),
 		BidLimits: make(map[float64]*Limit),
 		Orders:    make(map[int64]*Order),
+
+		stopLimitOrders:  []*StopOrder{},
+		stopMarketOrders: []*StopOrder{},
 	}
 }
 
@@ -240,6 +332,14 @@ func (ob *Orderbook) PlaceMarketOrder(o *Order) []Match {
 	}
 
 	return matches
+}
+
+func (ob *Orderbook) PlaceStopOrder(o *StopOrder) {
+	if o.Limit {
+		ob.stopLimitOrders = append(ob.stopLimitOrders, o)
+	} else {
+		ob.stopMarketOrders = append(ob.stopMarketOrders, o)
+	}
 }
 
 func (ob *Orderbook) PlaceLimitOrder(price float64, o *Order) {
@@ -332,4 +432,35 @@ func (ob *Orderbook) AskTotalVolume() float64 {
 	}
 
 	return askTotalVolume
+}
+
+func (ob *Orderbook) StopLimits() []*StopOrder {
+	sort.Sort(StopOrders(ob.stopLimitOrders))
+	return ob.stopLimitOrders
+}
+
+func (ob *Orderbook) StopMarkets() []*StopOrder {
+	sort.Sort(StopOrders(ob.stopMarketOrders))
+	return ob.stopMarketOrders
+}
+
+func (ob *Orderbook) CancelStopOrder(so *StopOrder) {
+	if so.Limit {
+		for i := 0; i < len(ob.stopLimitOrders); i++ {
+			if ob.stopLimitOrders[i] == so && ob.stopLimitOrders[i].State == Pending {
+				ob.stopLimitOrders[i].State = Canceled
+				// ob.stopLimitOrders[i] = ob.stopLimitOrders[len(ob.stopLimitOrders)-1]
+				// ob.stopLimitOrders = ob.stopLimitOrders[:len(ob.stopLimitOrders)-1]
+
+			}
+		}
+	} else {
+		for i := 0; i < len(ob.stopMarketOrders); i++ {
+			if ob.stopMarketOrders[i] == so && ob.stopLimitOrders[i].State == Pending {
+				ob.stopMarketOrders[i].State = Canceled
+				// ob.stopMarketOrders[i] = ob.stopMarketOrders[len(ob.stopMarketOrders)-1]
+				// ob.stopMarketOrders = ob.stopMarketOrders[:len(ob.stopMarketOrders)-1]
+			}
+		}
+	}
 }
