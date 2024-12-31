@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,6 +52,16 @@ type (
 		Market Market
 	}
 
+	PlaceStopOrderRequest struct {
+		UserID    int64
+		Bid       bool
+		Size      float64
+		StopPrice float64
+		Price     float64
+		Market    Market
+		Limit     bool
+	}
+
 	Order struct {
 		UserID    int64
 		ID        int64
@@ -61,10 +72,12 @@ type (
 	}
 
 	OrderBookData struct {
-		TotalBidVolume float64
-		TotalAskVolume float64
-		Asks           []*Order
-		Bids           []*Order
+		TotalBidVolume   float64
+		TotalAskVolume   float64
+		Asks             []*Order
+		Bids             []*Order
+		StopLimitOrders  []*StopOrder
+		StopMarketOrders []*StopOrder
 	}
 
 	MatchedOrder struct {
@@ -76,6 +89,18 @@ type (
 
 	APIError struct {
 		Error string
+	}
+
+	StopOrder struct {
+		ID        int64
+		UserID    int64
+		Size      float64
+		Bid       bool
+		Limit     bool
+		Timestamp int64
+		StopPrice float64
+		Price     float64
+		State     orderbook.StopOrderState
 	}
 )
 
@@ -91,6 +116,8 @@ func StartServer() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go ex.processStopOrders(MarketETH)
 
 	pk1 := "829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"
 	user1 := NewUser(pk1, 8888)
@@ -109,6 +136,10 @@ func StartServer() {
 	e.POST("/order", ex.handlePlaceOrder)
 	e.GET("/order/:userId", ex.handleGetOrders)
 	e.DELETE("/order/:id", ex.CancelOrder)
+	e.DELETE("/stoplimitorder/:id", ex.CancelStopLimitOrder)
+	e.DELETE("/stopmarketorder/:id", ex.CancelStopMarketOrder)
+
+	e.POST("/stoporder", ex.handlePlaceStopOrder)
 
 	e.GET("/book/:market", ex.handleGetBook)
 	e.GET("/book/:market/bid", ex.handleGetBestBid)
@@ -232,6 +263,52 @@ type GetOrdersResponse struct {
 	Bids []Order
 }
 
+var (
+	tick = 1 * time.Second
+)
+
+func (ex *Exchange) processStopOrders(market Market) {
+	ticker := time.NewTicker(tick)
+
+	for {
+
+		ob := ex.orderbook[market]
+
+		// simple search, but becuse ob.StopLimits() is sorted, it should refactored to binary search
+		for _, stopLimitOrder := range ob.StopLimits() {
+			exchangePrice := ob.Trades[len(ob.Trades)-1].Price
+
+			if stopLimitOrder.State == orderbook.Triggered {
+				continue
+			}
+
+			shouldTrigger := false
+			if stopLimitOrder.Bid && stopLimitOrder.StopPrice >= exchangePrice {
+				shouldTrigger = true
+			} else if !stopLimitOrder.Bid && stopLimitOrder.StopPrice <= exchangePrice {
+				shouldTrigger = true
+			}
+
+			if shouldTrigger {
+				limitOrder := orderbook.NewOrder(stopLimitOrder.Bid, stopLimitOrder.Size, stopLimitOrder.UserId)
+				ob.PlaceLimitOrder(stopLimitOrder.Price, limitOrder)
+				stopLimitOrder.State = orderbook.Triggered
+
+				if stopLimitOrder.Bid {
+
+					fmt.Printf("stop Bid limit order triggered =>%d | price [%.2f] | size [%.2f]", stopLimitOrder.ID, stopLimitOrder.Price, stopLimitOrder.Size)
+				} else {
+					fmt.Printf("stop Ask limit order triggered =>%d | price [%.2f] | size [%.2f]", stopLimitOrder.ID, stopLimitOrder.Price, stopLimitOrder.Size)
+
+				}
+			}
+
+		}
+		<-ticker.C
+	}
+
+}
+
 func (ex *Exchange) handleGetTrades(c echo.Context) error {
 	market := Market(c.Param("market"))
 	ob, ok := ex.orderbook[market]
@@ -346,6 +423,46 @@ func (ex *Exchange) CancelOrder(c echo.Context) error {
 
 }
 
+func (ex *Exchange) CancelStopLimitOrder(c echo.Context) error {
+	idStr := c.Param("id")
+	id, _ := strconv.Atoi(idStr)
+
+	ob := ex.orderbook[MarketETH]
+
+	for _, stopLimitOrder := range ob.StopLimits() {
+		if stopLimitOrder.ID == int64(id) && stopLimitOrder.State != orderbook.Canceled {
+			ob.CancelStopOrder(stopLimitOrder)
+			return c.JSON(http.StatusOK, map[string]any{
+				"msg": "stop limit order canceled",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusBadRequest, map[string]any{
+		"msg": "stop limit order not found",
+	})
+}
+
+func (ex *Exchange) CancelStopMarketOrder(c echo.Context) error {
+	idStr := c.Param("id")
+	id, _ := strconv.Atoi(idStr)
+
+	ob := ex.orderbook[MarketETH]
+
+	for _, stopMarketOrder := range ob.StopMarkets() {
+		if stopMarketOrder.ID == int64(id) && stopMarketOrder.State != orderbook.Canceled {
+			ob.CancelStopOrder(stopMarketOrder)
+			return c.JSON(http.StatusOK, map[string]any{
+				"msg": "stop market order canceled",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusBadRequest, map[string]any{
+		"msg": "stop market order not found",
+	})
+}
+
 func (ex *Exchange) handleGetBook(c echo.Context) error {
 	market := c.Param("market")
 
@@ -358,10 +475,12 @@ func (ex *Exchange) handleGetBook(c echo.Context) error {
 	}
 
 	orderBookData := OrderBookData{
-		TotalBidVolume: ob.BidTotalVolume(),
-		TotalAskVolume: ob.AskTotalVolume(),
-		Asks:           []*Order{},
-		Bids:           []*Order{},
+		TotalBidVolume:   ob.BidTotalVolume(),
+		TotalAskVolume:   ob.AskTotalVolume(),
+		Asks:             []*Order{},
+		Bids:             []*Order{},
+		StopLimitOrders:  []*StopOrder{},
+		StopMarketOrders: []*StopOrder{},
 	}
 
 	for _, limit := range ob.Asks() {
@@ -390,6 +509,40 @@ func (ex *Exchange) handleGetBook(c echo.Context) error {
 			}
 			orderBookData.Bids = append(orderBookData.Bids, &o)
 		}
+	}
+
+	for _, stopLimitOrder := range ob.StopLimits() {
+		// if stopLimitOrder.State == orderbook.Pending {
+		o := StopOrder{
+			ID:        stopLimitOrder.ID,
+			UserID:    stopLimitOrder.UserId,
+			Size:      stopLimitOrder.Size,
+			Bid:       stopLimitOrder.Bid,
+			Limit:     stopLimitOrder.Limit,
+			Timestamp: stopLimitOrder.Timestamp,
+			StopPrice: stopLimitOrder.StopPrice,
+			Price:     stopLimitOrder.Price,
+			State:     stopLimitOrder.State,
+		}
+		orderBookData.StopLimitOrders = append(orderBookData.StopLimitOrders, &o)
+		// }
+	}
+
+	for _, stopMarketOrder := range ob.StopMarkets() {
+		// if stopMarketOrder.State == orderbook.Pending {
+		o := StopOrder{
+			ID:        stopMarketOrder.ID,
+			UserID:    stopMarketOrder.UserId,
+			Size:      stopMarketOrder.Size,
+			Bid:       stopMarketOrder.Bid,
+			Limit:     stopMarketOrder.Bid,
+			Timestamp: stopMarketOrder.Timestamp,
+			StopPrice: stopMarketOrder.StopPrice,
+			Price:     stopMarketOrder.Price,
+			State:     stopMarketOrder.State,
+		}
+		orderBookData.StopMarketOrders = append(orderBookData.StopMarketOrders, &o)
+		// }
 	}
 
 	return c.JSON(http.StatusOK, orderBookData)
@@ -463,6 +616,29 @@ func (ex *Exchange) handlePlaceLimitOrder(market Market, price float64, order *o
 
 type PlaceOrderResponse struct {
 	OrderId int64
+}
+
+type PlaceStopOrderResponse struct {
+	StopOrderId int64
+}
+
+func (ex *Exchange) handlePlaceStopOrder(c echo.Context) error {
+	var placeStopOrderData PlaceStopOrderRequest
+	if err := json.NewDecoder(c.Request().Body).Decode(&placeStopOrderData); err != nil {
+		return err
+	}
+
+	market := placeStopOrderData.Market
+	order := orderbook.NewStopOrder(placeStopOrderData.Bid, placeStopOrderData.Limit, placeStopOrderData.Size, placeStopOrderData.Price, placeStopOrderData.StopPrice, placeStopOrderData.UserID)
+
+	ob := ex.orderbook[market]
+	ob.PlaceStopOrder(order)
+
+	resp := &PlaceStopOrderResponse{
+		StopOrderId: order.ID,
+	}
+
+	return c.JSON(200, resp)
 }
 
 func (ex *Exchange) handlePlaceOrder(c echo.Context) error {
