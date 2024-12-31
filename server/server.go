@@ -117,7 +117,8 @@ func StartServer() {
 		log.Fatal(err)
 	}
 
-	go ex.processStopOrders(MarketETH)
+	go ex.processStopLimitOrders(MarketETH)
+	go ex.processStopMarketOrders(MarketETH)
 
 	pk1 := "829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"
 	user1 := NewUser(pk1, 8888)
@@ -267,7 +268,7 @@ var (
 	tick = 1 * time.Second
 )
 
-func (ex *Exchange) processStopOrders(market Market) {
+func (ex *Exchange) processStopLimitOrders(market Market) {
 	ticker := time.NewTicker(tick)
 
 	for {
@@ -299,6 +300,48 @@ func (ex *Exchange) processStopOrders(market Market) {
 					fmt.Printf("stop Bid limit order triggered =>%d | price [%.2f] | size [%.2f]", stopLimitOrder.ID, stopLimitOrder.Price, stopLimitOrder.Size)
 				} else {
 					fmt.Printf("stop Ask limit order triggered =>%d | price [%.2f] | size [%.2f]", stopLimitOrder.ID, stopLimitOrder.Price, stopLimitOrder.Size)
+
+				}
+			}
+
+		}
+		<-ticker.C
+	}
+
+}
+
+func (ex *Exchange) processStopMarketOrders(market Market) {
+	ticker := time.NewTicker(tick)
+
+	for {
+
+		ob := ex.orderbook[market]
+
+		// simple search, but becuse ob.StopMarkets() is sorted, it should refactored to binary search
+		for _, stopMarketOrder := range ob.StopMarkets() {
+			exchangePrice := ob.Trades[len(ob.Trades)-1].Price
+
+			if stopMarketOrder.State == orderbook.Triggered {
+				continue
+			}
+
+			shouldTrigger := false
+			if stopMarketOrder.Bid && stopMarketOrder.StopPrice >= exchangePrice {
+				shouldTrigger = true
+			} else if !stopMarketOrder.Bid && stopMarketOrder.StopPrice <= exchangePrice {
+				shouldTrigger = true
+			}
+
+			if shouldTrigger {
+				marketOrder := orderbook.NewOrder(stopMarketOrder.Bid, stopMarketOrder.Size, stopMarketOrder.UserId)
+				ob.PlaceMarketOrder(marketOrder)
+				stopMarketOrder.State = orderbook.Triggered
+
+				if stopMarketOrder.Bid {
+
+					fmt.Printf("stop Bid Market order triggered =>%d | price [%.2f] | size [%.2f]", stopMarketOrder.ID, stopMarketOrder.Price, stopMarketOrder.Size)
+				} else {
+					fmt.Printf("stop Ask Market order triggered =>%d | price [%.2f] | size [%.2f]", stopMarketOrder.ID, stopMarketOrder.Price, stopMarketOrder.Size)
 
 				}
 			}
