@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/mahdifardi/cryptocurrencyExchange/limit"
 )
 
 func assert(t *testing.T, a, b any) {
@@ -13,10 +15,10 @@ func assert(t *testing.T, a, b any) {
 }
 
 func TestLimit(t *testing.T) {
-	l := NewLimit(10_000)
-	bidOrderA := NewOrder(true, 8, 0)
-	bidOrderB := NewOrder(true, 4, 0)
-	bidOrderC := NewOrder(true, 6, 0)
+	l := limit.NewLimit(10_000)
+	bidOrderA := limit.NewLimitOrder(true, 8, 0)
+	bidOrderB := limit.NewLimitOrder(true, 4, 0)
+	bidOrderC := limit.NewLimitOrder(true, 6, 0)
 
 	l.AddOrder(bidOrderA)
 	l.AddOrder(bidOrderB)
@@ -33,8 +35,8 @@ func TestLimit(t *testing.T) {
 func TestPlaceLimitOrder(t *testing.T) {
 	ob := NewOrderbook()
 
-	sellOrderA := NewOrder(false, 10, 0)
-	sellOrderB := NewOrder(false, 5, 0)
+	sellOrderA := limit.NewLimitOrder(false, 10, 0)
+	sellOrderB := limit.NewLimitOrder(false, 5, 0)
 
 	ob.PlaceLimitOrder(10_000, sellOrderA)
 	ob.PlaceLimitOrder(9_000, sellOrderB)
@@ -48,10 +50,10 @@ func TestPlaceLimitOrder(t *testing.T) {
 func TestPlaceMarketOrder(t *testing.T) {
 	ob := NewOrderbook()
 
-	sellOrder := NewOrder(false, 20, 0)
+	sellOrder := limit.NewLimitOrder(false, 20, 0)
 	ob.PlaceLimitOrder(10_000, sellOrder)
 
-	buyOrder := NewOrder(true, 10, 0)
+	buyOrder := limit.NewLimitOrder(true, 10, 0)
 	matches := ob.PlaceMarketOrder(buyOrder)
 
 	assert(t, len(matches), 1)
@@ -70,10 +72,10 @@ func TestPlaceMarketOrder(t *testing.T) {
 func TestPlaceMultiMarketOrder(t *testing.T) {
 	ob := NewOrderbook()
 
-	buyOrderA := NewOrder(true, 5, 0)
-	buyOrderB := NewOrder(true, 8, 0)
-	buyOrderC := NewOrder(true, 1, 0)
-	buyOrderD := NewOrder(true, 1, 0)
+	buyOrderA := limit.NewLimitOrder(true, 5, 0)
+	buyOrderB := limit.NewLimitOrder(true, 8, 0)
+	buyOrderC := limit.NewLimitOrder(true, 1, 0)
+	buyOrderD := limit.NewLimitOrder(true, 1, 0)
 
 	ob.PlaceLimitOrder(5_000, buyOrderC)
 	ob.PlaceLimitOrder(5_000, buyOrderD)
@@ -83,7 +85,7 @@ func TestPlaceMultiMarketOrder(t *testing.T) {
 
 	assert(t, ob.BidTotalVolume(), 15.0)
 
-	sellOrder := NewOrder(false, 10, 0)
+	sellOrder := limit.NewLimitOrder(false, 10, 0)
 	matches := ob.PlaceMarketOrder(sellOrder)
 
 	assert(t, ob.BidTotalVolume(), 5.0)
@@ -98,7 +100,7 @@ func TestCancelAskOrder(t *testing.T) {
 
 	price := 10_000.0
 
-	sellOrder := NewOrder(false, 4, 0)
+	sellOrder := limit.NewLimitOrder(false, 4, 0)
 	ob.PlaceLimitOrder(price, sellOrder)
 
 	assert(t, ob.AskTotalVolume(), 4.0)
@@ -120,7 +122,7 @@ func TestCancelBidOrder(t *testing.T) {
 
 	price := 10_000.0
 
-	buyOrder := NewOrder(true, 4, 0)
+	buyOrder := limit.NewLimitOrder(true, 4, 0)
 	ob.PlaceLimitOrder(price, buyOrder)
 
 	assert(t, ob.BidTotalVolume(), 4.0)
@@ -142,10 +144,10 @@ func TestLastMarketTrades(t *testing.T) {
 
 	price := 10_000.0
 
-	sellOrder := NewOrder(false, 10, 0)
+	sellOrder := limit.NewLimitOrder(false, 10, 0)
 	ob.PlaceLimitOrder(price, sellOrder)
 
-	marketOrder := NewOrder(true, 10, 0)
+	marketOrder := limit.NewLimitOrder(true, 10, 0)
 	matches := ob.PlaceMarketOrder(marketOrder)
 
 	assert(t, len(matches), 1)
