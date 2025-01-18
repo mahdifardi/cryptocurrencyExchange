@@ -1,0 +1,147 @@
+package exchange
+
+import (
+	"encoding/json"
+	"log"
+
+	"github.com/labstack/echo/v4"
+	"github.com/mahdifardi/cryptocurrencyExchange/limit"
+	"github.com/mahdifardi/cryptocurrencyExchange/order"
+)
+
+func (ex *Exchange) HandlePlaceMarketOrder(market order.Market, newOrder *limit.LimitOrder) ([]limit.Match, []*order.MatchedOrder) {
+	ob := ex.Orderbook[market]
+
+	matches := ob.PlaceMarketOrder(newOrder)
+	matchedOreders := make([]*order.MatchedOrder, len(matches))
+
+	isBid := false
+	if newOrder.Bid {
+		isBid = true
+	}
+	sumPrice := 0.0
+	totalSizeFilled := 0.0
+	for i := 0; i < len(matchedOreders); i++ {
+		id := matches[i].Bid.ID
+		userId := matches[i].Bid.UserId
+		if isBid {
+			id = matches[i].Ask.ID
+			userId = matches[i].Ask.UserId
+
+		}
+		matchedOreders[i] = &order.MatchedOrder{
+			// UserId: order.UserId,
+			UserId: userId,
+			Price:  matches[i].Price,
+			Size:   matches[i].SizeFilled,
+			ID:     id,
+		}
+		totalSizeFilled += matches[i].SizeFilled
+		sumPrice += matches[i].Price
+	}
+	averagePrice := sumPrice / float64((len(matchedOreders)))
+	log.Printf("filled Market order =>%d | size [%.2f] | average price [%.2f]", newOrder.ID, totalSizeFilled, averagePrice)
+
+	return matches, matchedOreders
+}
+
+func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, order *limit.LimitOrder) error {
+	ob := ex.Orderbook[market]
+	ob.PlaceLimitOrder(price, order)
+
+	ex.Mu.Lock()
+	ex.Orders[order.UserId] = append(ex.Orders[order.UserId], order)
+	ex.Mu.Unlock()
+	// user, ok := ex.Users[order.UserId]
+	// if !ok {
+	// 	return fmt.Errorf("user not found: %d", user.ID)
+	// }
+	// // transfffer from user => exchange
+
+	// exchangePublicKey := ex.PrivateKey.Public()
+	// exchangePublicKeyECDSA, ok := exchangePublicKey.(*ecdsa.PublicKey)
+	// if !ok {
+	// 	return fmt.Errorf("error casting public key to ECDSA")
+	// }
+
+	// exAddress := crypto.PubkeyToAddress(*exchangePublicKeyECDSA)
+
+	// result := transferETH(ex.Client, user.PrivateKey, exAddress, big.NewInt(int64(order.Size)))
+
+	// return result
+
+	log.Printf("new limit order =>type [%t] price [%.2f] size [%.2f]", order.Bid, order.Limit.Price, order.Size)
+
+	return nil
+}
+
+func (ex *Exchange) HandlePlaceStopOrder(c echo.Context) error {
+	var placeStopOrderData order.PlaceStopOrderRequest
+	if err := json.NewDecoder(c.Request().Body).Decode(&placeStopOrderData); err != nil {
+		return err
+	}
+
+	market := placeStopOrderData.Market
+	newOrder := order.NewStopOrder(placeStopOrderData.Bid, placeStopOrderData.Limit, placeStopOrderData.Size, placeStopOrderData.Price, placeStopOrderData.StopPrice, placeStopOrderData.UserID)
+
+	ob := ex.Orderbook[market]
+	ob.PlaceStopOrder(newOrder)
+
+	resp := &order.PlaceStopOrderResponse{
+		StopOrderId: newOrder.ID,
+	}
+
+	return c.JSON(200, resp)
+}
+
+func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
+	var placeOrderData order.PlaceOrderRequest
+	if err := json.NewDecoder(c.Request().Body).Decode(&placeOrderData); err != nil {
+		return err
+	}
+
+	//Limimmt
+	market := placeOrderData.Market
+	newOrder := limit.NewLimitOrder(placeOrderData.Bid, placeOrderData.Size, placeOrderData.UserID)
+
+	if placeOrderData.Type == order.LimitOrder {
+
+		if err := ex.HandlePlaceLimitOrder(market, placeOrderData.Price, newOrder); err != nil {
+			return err
+		}
+
+	}
+
+	//Market
+	if placeOrderData.Type == order.MarketOrder {
+		matches, matchedOreders := ex.HandlePlaceMarketOrder(market, newOrder)
+
+		if err := ex.HandleMatches(matches); err != nil {
+			return err
+		}
+
+		//delete the orders off the user wwhen filled
+		// for _, matchedOreder := range matchedOreders {
+		for j := 0; j < len(matchedOreders); j++ {
+			// userOrders :=  ex.Orders[matchedOreders[j].UserId]
+			for i := 0; i < len(ex.Orders[matchedOreders[j].UserId]); i++ {
+
+				// if the size is 0 ew can delete order
+				if ex.Orders[matchedOreders[j].UserId][i].IsFilled() {
+
+					if matchedOreders[j].ID == ex.Orders[matchedOreders[j].UserId][i].ID {
+						ex.Orders[matchedOreders[j].UserId][i] = ex.Orders[matchedOreders[j].UserId][len(ex.Orders[matchedOreders[j].UserId])-1]
+						ex.Orders[matchedOreders[j].UserId] = ex.Orders[matchedOreders[j].UserId][:len(ex.Orders[matchedOreders[j].UserId])-1]
+					}
+				}
+			}
+
+		}
+	}
+
+	resp := &order.PlaceOrderResponse{
+		OrderId: newOrder.ID,
+	}
+	return c.JSON(200, resp)
+
+}
