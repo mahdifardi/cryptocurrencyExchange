@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"sync"
 
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
@@ -24,14 +25,15 @@ type (
 
 type Exchange struct {
 	Mu         sync.RWMutex
-	Client     *ethclient.Client
+	EthClient  *ethclient.Client
+	btcClient  *rpcclient.Client
 	Users      map[int64]*user.User          // orderId => User
 	Orders     map[int64][]*limit.LimitOrder // ordeers map a user to his orders
 	PrivateKey *ecdsa.PrivateKey
 	Orderbook  map[order.Market]*orderbook.Orderbook
 }
 
-func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error) {
+func NewExchange(privateKey string, ethClient *ethclient.Client, btcClient *rpcclient.Client) (*Exchange, error) {
 	pk, err := crypto.HexToECDSA(privateKey)
 	if err != nil {
 		return nil, err
@@ -43,7 +45,8 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 
 	return &Exchange{
 
-		Client:     client,
+		EthClient:  ethClient,
+		btcClient:  btcClient,
 		Users:      make(map[int64]*user.User),
 		Orders:     make(map[int64][]*limit.LimitOrder),
 		PrivateKey: pk,

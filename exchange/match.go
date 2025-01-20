@@ -32,7 +32,7 @@ func (ex *Exchange) HandleMatches(matches []limit.Match) error {
 
 		amount := big.NewInt(int64(match.SizeFilled))
 
-		transferETH(ex.Client, fromUser.PrivateKey, toAddress, amount)
+		transferETH(ex.EthClient, fromUser.PrivateKey, toAddress, amount)
 
 	}
 

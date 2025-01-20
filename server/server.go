@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/labstack/echo/v4"
@@ -16,12 +17,20 @@ import (
 func StartServer() {
 	e := echo.New()
 
-	client, err := ethclient.Dial("http://localhost:8545")
+	ethClient, err := createEthClient("http://localhost:8545")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ex, err := exchange.NewExchange(exchange.ExchangePrivateKey, client)
+	btcClient, err := createBtcClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// btcUser1Address := "tb1qthxj0604uc2hvcr4fz2m3qzsg8297kry2r9dnd"
+	// btcUser2Address := "tb1qnkaqukzxvrnevgvrt7k3ln83swn60dxm33ny0s"
+
+	ex, err := exchange.NewExchange(exchange.ExchangePrivateKey, ethClient, btcClient)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,10 +65,25 @@ func StartServer() {
 	e.GET("/book/:market/ask", ex.HandleGetBestAsk)
 
 	address := "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E"
-	balance, _ := ex.Client.BalanceAt(context.Background(), common.HexToAddress(address), nil)
+	balance, _ := ex.EthClient.BalanceAt(context.Background(), common.HexToAddress(address), nil)
 
 	fmt.Println(balance)
 
 	e.Start(":3000")
 
+}
+
+func createEthClient(url string) (*ethclient.Client, error) {
+	return ethclient.Dial(url)
+}
+
+func createBtcClient() (*rpcclient.Client, error) {
+	btcConnCfg := &rpcclient.ConnConfig{
+		Host:         "127.0.0.1:18332", // Testnet RPC port
+		User:         "admin",           // Match rpcuser in bitcoin.conf
+		Pass:         "admin",           // Match rpcpassword in bitcoin.conf
+		HTTPPostMode: true,              // Use HTTP POST mode
+		DisableTLS:   true,              // Disable TLS for localhost
+	}
+	return rpcclient.New(btcConnCfg, nil)
 }
