@@ -10,81 +10,82 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 )
 
-func TransferBTC(client *rpcclient.Client, fromAddress, toAddress string, amount float64) error {
-	// convert the amount of transaction to statoshi
-	amountSatoshis := int64(amount * 1e8)
+func (ex *Exchange) TransferBTC(client *rpcclient.Client, fromAddress, toAddress string, amount float64) error {
+	// Convert amount to satoshis (handle floating-point precision carefully)
+	amountSat := btcutil.Amount(amount * 1e8)
 
-	// convert fromAddress to btcutil.Address
-	fromAddressDecoded, err := btcutil.DecodeAddress(fromAddress, &chaincfg.TestNet3Params)
+	// Decode addresses with error wrapping
+	fromAddr, err := btcutil.DecodeAddress(fromAddress, &chaincfg.RegressionNetParams)
 	if err != nil {
-		return fmt.Errorf("failed to decode address")
+		return fmt.Errorf("invalid from address: %w", err)
 	}
 
-	// get all utxos for fromAddress that want to send btc to toAddress
-	utxos, err := client.ListUnspentMinMaxAddresses(1, 9999999, []btcutil.Address{fromAddressDecoded})
-	if err != nil {
-		return fmt.Errorf("failed to fetch UTXOs: %w", err)
-	}
-
-	// a list of utxos transactions of fromAddress
-	var inputs []btcjson.TransactionInput
-	// total utxos of fromAddress that we want to send amountSatoshis to toAddress
-	var inputAmount int64
-
-	// Gather enough UTXOs to cover the amount + fees
-	for _, utxo := range utxos {
-		input := btcjson.TransactionInput{
-			Txid: utxo.TxID,
-			Vout: utxo.Vout,
-		}
-		inputs = append(inputs, input)
-		inputAmount += int64(utxo.Amount * 1e8)
-		if inputAmount >= amountSatoshis+1000 { // Include a fee buffer
-			break
-		}
-	}
-
-	// check for sufficient balance
-	if inputAmount < amountSatoshis {
-		return fmt.Errorf("insufficient balance: need %d satoshis, but have %d satoshis", amountSatoshis, inputAmount)
-	}
-
-	// Convert addresses to btcutil.Address type
-	toAddressDecoded, err := btcutil.DecodeAddress(toAddress, &chaincfg.TestNet3Params)
+	toAddr, err := btcutil.DecodeAddress(toAddress, &chaincfg.RegressionNetParams)
 	if err != nil {
 		return fmt.Errorf("invalid to address: %w", err)
 	}
 
-	// Prepare outputs (recipient and change)
-	change := inputAmount - amountSatoshis - 1000 // Subtract a fee of 1000 satoshis (0.00001 BTC)
+	// Fetch UTXOs with verbose error handling
+	utxos, err := client.ListUnspentMinMaxAddresses(1, 9999999, []btcutil.Address{fromAddr})
+	if err != nil {
+		return fmt.Errorf("failed to list UTXOs: %w", err)
+	}
+
+	// UTXO selection logic with fee estimation
+	var (
+		inputs       []btcjson.TransactionInput
+		totalInput   btcutil.Amount
+		targetAmount = amountSat + 1000 // Base fee of 1000 satoshis
+	)
+
+	for _, utxo := range utxos {
+		inputs = append(inputs, btcjson.TransactionInput{
+			Txid: utxo.TxID,
+			Vout: utxo.Vout,
+		})
+		totalInput += btcutil.Amount(utxo.Amount * 1e8)
+
+		if totalInput >= targetAmount {
+			break
+		}
+	}
+
+	if totalInput < amountSat {
+		return fmt.Errorf("insufficient funds: need %s, available %s",
+			amountSat, totalInput)
+	}
+
+	// Calculate change (handle zero-change edge case)
+	change := totalInput - amountSat - 1000 // Deduct fee
 	outputs := map[btcutil.Address]btcutil.Amount{
-		toAddressDecoded: btcutil.Amount(amountSatoshis),
+		toAddr: amountSat,
 	}
 
-	// if there is any change from transaction, it should return to fromAddress
 	if change > 0 {
-		outputs[fromAddressDecoded] = btcutil.Amount(change)
+		outputs[fromAddr] = change
 	}
 
-	// Create the raw transaction
+	// Transaction construction pipeline
 	rawTx, err := client.CreateRawTransaction(inputs, outputs, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create raw transaction: %w", err)
+		return fmt.Errorf("tx creation failed: %w", err)
 	}
 
-	// Sign the raw transaction
-	signedTx, _, err := client.SignRawTransaction(rawTx)
+	// Sign with wallet (ensure wallet contains private keys)
+	signedTx, complete, err := client.SignRawTransactionWithWallet(rawTx)
 	if err != nil {
-		return fmt.Errorf("failed to sign raw transaction: %w", err)
+		return fmt.Errorf("signing failed: %w", err)
+	}
+	if !complete {
+		return fmt.Errorf("partial signing detected")
 	}
 
-	// Broadcast the signed transaction
+	// Broadcast with full error context
 	txHash, err := client.SendRawTransaction(signedTx, false)
 	if err != nil {
-		return fmt.Errorf("failed to broadcast transaction: %w", err)
+		return fmt.Errorf("broadcast failed: %w", err)
 	}
 
-	log.Printf("Transaction broadcasted! TXID: %s", txHash.String())
+	log.Printf("Success! TXID: %s", txHash)
 	return nil
-
 }

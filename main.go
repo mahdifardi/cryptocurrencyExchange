@@ -167,7 +167,7 @@ func seedMarket(c *client.Client) error {
 }
 
 func main() {
-	go server.StartServer()
+	server.StartServer()
 
 	time.Sleep(1 * time.Second)
 

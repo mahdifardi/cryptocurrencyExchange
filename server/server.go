@@ -27,13 +27,15 @@ func StartServer() {
 		log.Fatal(err)
 	}
 
-	// btcUser1Address := "tb1qthxj0604uc2hvcr4fz2m3qzsg8297kry2r9dnd"
-	// btcUser2Address := "tb1qnkaqukzxvrnevgvrt7k3ln83swn60dxm33ny0s"
+	btcUser1Address := "bcrt1qgse8uufcwme9mzsnhctmkhg263ezd2pj20l99h"
+	btcUser2Address := "bcrt1q8alarxp3l9w9r86m7zpl4hw9uaxyw3ydh2kvnd"
 
 	ex, err := exchange.NewExchange(exchange.ExchangePrivateKey, ethClient, btcClient)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go ex.TransferBTC(btcClient, btcUser1Address, btcUser2Address, .002)
 
 	go ex.ProcessStopLimitOrders(order.MarketETH)
 	go ex.ProcessStopMarketOrders(order.MarketETH)
@@ -79,11 +81,12 @@ func createEthClient(url string) (*ethclient.Client, error) {
 
 func createBtcClient() (*rpcclient.Client, error) {
 	btcConnCfg := &rpcclient.ConnConfig{
-		Host:         "127.0.0.1:18332", // Testnet RPC port
-		User:         "admin",           // Match rpcuser in bitcoin.conf
-		Pass:         "admin",           // Match rpcpassword in bitcoin.conf
-		HTTPPostMode: true,              // Use HTTP POST mode
-		DisableTLS:   true,              // Disable TLS for localhost
+		Host:         "127.0.0.1:18332/wallet/regnet_wallet", // Testnet RPC port
+		User:         "admin",                                // Match rpcuser in bitcoin.conf
+		Pass:         "admin",                                // Match rpcpassword in bitcoin.conf
+		HTTPPostMode: true,                                   // Use HTTP POST mode
+		DisableTLS:   true,                                   // Disable TLS for localhost
+		Params:       "regtest",
 	}
 	return rpcclient.New(btcConnCfg, nil)
 }
