@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	MarketETH   Market    = "ETH"
+	MarketETH Market = "ETH"
+	MarketBTC Market = "BTC"
+
 	MarketOrder OrderType = "Market"
 	LimitOrder  OrderType = "Limit"
 

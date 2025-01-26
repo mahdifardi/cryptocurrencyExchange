@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"sync"
 
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
@@ -14,6 +15,7 @@ import (
 
 const (
 	ExchangePrivateKey = "9d98cf5774b145b75f4e387b7ee8c763ceb270730052cdcd015ea99f4c1e9652"
+	ExchangeBTCAdress  = "bcrt1qvqruk47vum9nehcpwhwyzeutcjh2mutwu0efl5"
 )
 
 type (
@@ -23,16 +25,18 @@ type (
 )
 
 type Exchange struct {
-	Mu         sync.RWMutex
-	Client     *ethclient.Client
-	Users      map[int64]*user.User          // orderId => User
-	Orders     map[int64][]*limit.LimitOrder // ordeers map a user to his orders
-	PrivateKey *ecdsa.PrivateKey
-	Orderbook  map[order.Market]*orderbook.Orderbook
+	Mu            sync.RWMutex
+	EthClient     *ethclient.Client
+	btcClient     *rpcclient.Client
+	Users         map[int64]*user.User          // orderId => User
+	Orders        map[int64][]*limit.LimitOrder // ordeers map a user to his orders
+	ETHPrivateKey *ecdsa.PrivateKey
+	BTCAddress    string
+	Orderbook     map[order.Market]*orderbook.Orderbook
 }
 
-func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error) {
-	pk, err := crypto.HexToECDSA(privateKey)
+func NewExchange(ethPrivateKey string, btcAdress string, ethClient *ethclient.Client, btcClient *rpcclient.Client) (*Exchange, error) {
+	pk, err := crypto.HexToECDSA(ethPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +44,16 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 	orderbooks := make(map[order.Market]*orderbook.Orderbook)
 
 	orderbooks[order.MarketETH] = orderbook.NewOrderbook()
+	orderbooks[order.MarketBTC] = orderbook.NewOrderbook()
 
 	return &Exchange{
 
-		Client:     client,
-		Users:      make(map[int64]*user.User),
-		Orders:     make(map[int64][]*limit.LimitOrder),
-		PrivateKey: pk,
-		Orderbook:  orderbooks,
+		EthClient:     ethClient,
+		btcClient:     btcClient,
+		Users:         make(map[int64]*user.User),
+		Orders:        make(map[int64][]*limit.LimitOrder),
+		ETHPrivateKey: pk,
+		Orderbook:     orderbooks,
+		BTCAddress:    btcAdress,
 	}, nil
 }
