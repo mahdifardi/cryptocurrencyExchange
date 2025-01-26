@@ -27,15 +27,15 @@ func StartServer() {
 		log.Fatal(err)
 	}
 
-	btcUser1Address := "bcrt1qgse8uufcwme9mzsnhctmkhg263ezd2pj20l99h"
-	btcUser2Address := "bcrt1q8alarxp3l9w9r86m7zpl4hw9uaxyw3ydh2kvnd"
+	btcUser1Address := "bcrt1q09umv3yljx5hyn3gptz36q7uc6rmcjxa8wy8ve"
+	btcUser2Address := "bcrt1qvqruk47vum9nehcpwhwyzeutcjh2mutwu0efl5"
 
 	ex, err := exchange.NewExchange(exchange.ExchangePrivateKey, ethClient, btcClient)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	go ex.TransferBTC(btcClient, btcUser1Address, btcUser2Address, .002)
+	go ex.TransferBTC(btcClient, btcUser1Address, btcUser2Address, .00002)
 
 	go ex.ProcessStopLimitOrders(order.MarketETH)
 	go ex.ProcessStopMarketOrders(order.MarketETH)
@@ -89,4 +89,5 @@ func createBtcClient() (*rpcclient.Client, error) {
 		Params:       "regtest",
 	}
 	return rpcclient.New(btcConnCfg, nil)
+
 }
