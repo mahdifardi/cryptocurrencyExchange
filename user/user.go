@@ -7,18 +7,20 @@ import (
 )
 
 type User struct {
-	ID         int64
-	PrivateKey *ecdsa.PrivateKey
+	ID            int64
+	ETHPrivateKey *ecdsa.PrivateKey
+	BTCAdress     string
 }
 
-func NewUser(privateKey string, userId int64) *User {
-	pk, err := crypto.HexToECDSA(privateKey)
+func NewUser(ethPrivateKey string, btcAdress string, userId int64) *User {
+	pk, err := crypto.HexToECDSA(ethPrivateKey)
 	if err != nil {
 		panic(err)
 	}
 
 	return &User{
-		ID:         userId,
-		PrivateKey: pk,
+		ID:            userId,
+		ETHPrivateKey: pk,
+		BTCAdress:     btcAdress,
 	}
 }

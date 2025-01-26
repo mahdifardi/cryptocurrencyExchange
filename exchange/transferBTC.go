@@ -11,7 +11,7 @@ import (
 )
 
 func (ex *Exchange) TransferBTC(client *rpcclient.Client, fromAddress, toAddress string, amount float64) error {
-	// Convert amount to satoshis (handle floating-point precision carefully)
+	// Convert amount to satoshis
 	amountSat := btcutil.Amount(amount * 1e8)
 
 	// Decode addresses with error wrapping
@@ -35,7 +35,7 @@ func (ex *Exchange) TransferBTC(client *rpcclient.Client, fromAddress, toAddress
 	var (
 		inputs       []btcjson.TransactionInput
 		totalInput   btcutil.Amount
-		targetAmount = amountSat + 1000 // Base fee of 1000 satoshis
+		targetAmount = amountSat + 1000
 	)
 
 	for _, utxo := range utxos {
@@ -56,7 +56,7 @@ func (ex *Exchange) TransferBTC(client *rpcclient.Client, fromAddress, toAddress
 	}
 
 	// Calculate change (handle zero-change edge case)
-	change := totalInput - amountSat - 1000 // Deduct fee
+	change := totalInput - amountSat - 1000
 	outputs := map[btcutil.Address]btcutil.Amount{
 		toAddr: amountSat,
 	}

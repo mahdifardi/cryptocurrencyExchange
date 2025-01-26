@@ -21,7 +21,7 @@ func (ex *Exchange) HandleMatches(matches []limit.Match) error {
 			return fmt.Errorf("user not found: %d", match.Bid.ID)
 		}
 
-		toAddress := crypto.PubkeyToAddress(toUser.PrivateKey.PublicKey)
+		toAddress := crypto.PubkeyToAddress(toUser.ETHPrivateKey.PublicKey)
 
 		//exchange ffees
 		// exchangePublicKey := ex.PrivateKey.Public()
@@ -32,7 +32,7 @@ func (ex *Exchange) HandleMatches(matches []limit.Match) error {
 
 		amount := big.NewInt(int64(match.SizeFilled))
 
-		transferETH(ex.EthClient, fromUser.PrivateKey, toAddress, amount)
+		transferETH(ex.EthClient, fromUser.ETHPrivateKey, toAddress, amount)
 
 	}
 
