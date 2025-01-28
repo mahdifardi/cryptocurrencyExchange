@@ -10,7 +10,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 )
 
-func (ex *Exchange) TransferBTC(client *rpcclient.Client, fromAddress, toAddress string, amount float64) error {
+func transferBTC(client *rpcclient.Client, fromAddress, toAddress string, amount float64) error {
 	// Convert amount to satoshis
 	amountSat := btcutil.Amount(amount * 1e8)
 

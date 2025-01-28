@@ -116,8 +116,8 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 	if placeOrderData.Type == order.MarketOrder {
 		matches, matchedOreders := ex.HandlePlaceMarketOrder(market, newOrder)
 
-		if err := ex.HandleMatches(matches); err != nil {
-			return err
+		if err := ex.HandleMatches(market, matches); err != nil {
+			return c.JSON(500, err)
 		}
 
 		//delete the orders off the user wwhen filled
