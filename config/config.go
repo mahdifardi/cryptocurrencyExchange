@@ -13,6 +13,7 @@ type Config struct {
 	BtccHostAddress string `json:"BtcHostAddress"`
 	BtcPort         string `json:"BtcPort"`
 	BtcWallet       string `json:"BtcWallet"`
+	BtcEndpoint     string `json:"BtcEndpoint"`
 
 	BtcUser    string `json:"BtccUser"`
 	BtcPass    string `json:"BtccPass"`

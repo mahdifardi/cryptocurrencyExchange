@@ -95,12 +95,13 @@ func createEthClient(url string) (*ethclient.Client, error) {
 
 func createBtcClient(config config.Config) (*rpcclient.Client, error) {
 	btcConnCfg := &rpcclient.ConnConfig{
-		Host:         fmt.Sprintf("%s:%s%s", config.BtccHostAddress, config.ServerPort, config.BtcWallet), //"127.0.0.1:18332/wallet/regnet_wallet", // Testnet RPC port
-		User:         config.BtcUser,                                                                      //"admin",                                // Match rpcuser in bitcoin.conf
-		Pass:         config.BtcPass,                                                                      //"admin",                                // Match rpcpassword in bitcoin.conf
-		HTTPPostMode: true,                                                                                // Use HTTP POST mode
-		DisableTLS:   true,                                                                                // Disable TLS for localhost
-		Params:       config.BtccParams,                                                                   //"regtest",
+		Host:         "127.0.0.1:18332/wallet/regnet_wallet", // fmt.Sprintf("%s:%s%s", config.BtccHostAddress, config.ServerPort, config.BtcWallet),  // Testnet RPC port
+		User:         config.BtcUser,                         //"admin",                                // Match rpcuser in bitcoin.conf
+		Pass:         config.BtcPass,                         //"admin",                                // Match rpcpassword in bitcoin.conf
+		HTTPPostMode: true,                                   // Use HTTP POST mode
+		DisableTLS:   true,                                   // Disable TLS for localhost
+		Params:       config.BtccParams,                      //"regtest",
+		Endpoint:     config.BtcEndpoint,
 	}
 	return rpcclient.New(btcConnCfg, nil)
 
