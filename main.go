@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mahdifardi/cryptocurrencyExchange/client"
+	"github.com/mahdifardi/cryptocurrencyExchange/config"
 	"github.com/mahdifardi/cryptocurrencyExchange/server"
 )
 
@@ -18,13 +19,13 @@ var (
 	tick = 2 * time.Second
 )
 
-func marketOrderPlacer(c *client.Client) {
+func marketOrderPlacer(config config.Config, c *client.Client) {
 	ticker := time.NewTicker(5 * time.Second)
 
 	for {
 
 		newmarketSellOrder := &client.PlaceOrderParams{
-			UserId: 8888,
+			UserId: config.User1ID,
 			Bid:    false,
 			Size:   1000.0,
 		}
@@ -35,7 +36,7 @@ func marketOrderPlacer(c *client.Client) {
 		}
 
 		marketSellOrder := &client.PlaceOrderParams{
-			UserId: 7777,
+			UserId: config.User3ID,
 			Bid:    false,
 			Size:   100.0,
 		}
@@ -46,7 +47,7 @@ func marketOrderPlacer(c *client.Client) {
 		}
 
 		marketBuyOrder := &client.PlaceOrderParams{
-			UserId: 7777,
+			UserId: config.User3ID,
 			Bid:    true,
 			Size:   100.0,
 		}
@@ -60,7 +61,7 @@ func marketOrderPlacer(c *client.Client) {
 	}
 }
 
-func makeMarketSimple(c *client.Client) {
+func makeMarketSimple(config config.Config, c *client.Client) {
 	ticker := time.NewTicker(tick)
 
 	for {
@@ -75,7 +76,7 @@ func makeMarketSimple(c *client.Client) {
 			fmt.Printf("exchange price => %.2f\n", trades[len(trades)-1].Price)
 		}
 
-		orders, err := c.GetOrders(9999)
+		orders, err := c.GetOrders(config.User2ID)
 		if err != nil {
 			log.Println(err)
 		}
@@ -97,7 +98,7 @@ func makeMarketSimple(c *client.Client) {
 		if len(orders.Bids) < maxOrders {
 
 			bidLimit := &client.PlaceOrderParams{
-				UserId: 9999,
+				UserId: config.User2ID,
 				Bid:    true,
 				Price:  bestBidPrice + 100,
 				Size:   1_000.0,
@@ -115,7 +116,7 @@ func makeMarketSimple(c *client.Client) {
 		if len(orders.Asks) < maxOrders {
 
 			askLimit := &client.PlaceOrderParams{
-				UserId: 9999,
+				UserId: config.User2ID,
 				Bid:    false,
 				Price:  bestAskPrice - 100,
 				Size:   1_000.0,
@@ -137,16 +138,16 @@ func makeMarketSimple(c *client.Client) {
 	}
 }
 
-func seedMarket(c *client.Client) error {
+func seedMarket(config config.Config, c *client.Client) error {
 	ask := &client.PlaceOrderParams{
-		UserId: 8888,
+		UserId: config.User1ID,
 		Bid:    false,
 		Price:  10_000.0,
 		Size:   10_000.0,
 	}
 
 	bid := &client.PlaceOrderParams{
-		UserId: 8888,
+		UserId: config.User1ID,
 		Bid:    true,
 		Price:  9_000.0,
 		Size:   10_000.0,
@@ -167,19 +168,24 @@ func seedMarket(c *client.Client) error {
 }
 
 func main() {
-	go server.StartServer()
+	config, err := config.LoadConfig("config/config.json")
+	fmt.Println(config)
+	if err != nil {
+		log.Fatalf("config file error: %v", err)
+	}
+	go server.StartServer(config)
 
 	time.Sleep(1 * time.Second)
 
 	c := client.NewClient()
 
-	if err := seedMarket(c); err != nil {
+	if err := seedMarket(config, c); err != nil {
 		panic(err)
 	}
 
-	go makeMarketSimple(c)
+	go makeMarketSimple(config, c)
 	time.Sleep(1 * time.Second)
-	marketOrderPlacer(c)
+	marketOrderPlacer(config, c)
 
 	// for {
 	// 	limitParams1 := &client.PlaceOrderParams{
