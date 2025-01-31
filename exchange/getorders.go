@@ -16,42 +16,59 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 		return err
 	}
 
+	// market := c.Param("market")
+
 	ex.Mu.RLock()
 	defer ex.Mu.RUnlock()
-	orderBookOrders := ex.Orders[int64(userId)]
+
+	// orderBookETHOrders := ex.Orders[order.MarketETH][int64(userId)]
+	// orderBookBTCOrders := ex.Orders[order.MarketBTC][int64(userId)]
+
+	// orderResponse := &order.GetOrdersResponse{
+	// 	Asks: []order.Order{},
+	// 	Bids: []order.Order{},
+	// }
 
 	orderResponse := &order.GetOrdersResponse{
-		Asks: []order.Order{},
-		Bids: []order.Order{},
+		Orders: make(map[order.Market]order.Orders),
 	}
+
+	// orderResponse.Orders[order.MarketETH] = order.Orders{}
+	// orderResponse.Orders[order.MarketBTC] = order.Orders{}
 
 	// orders := make([]Order, len(orderBookOrders))
 
-	for i := 0; i < len(orderBookOrders); i++ {
-		// it could be that ther order is geetting filled even its included in this response we must double check if the limits is not nil
+	for market, value := range ex.Orders {
+		orderResponse.Orders[market] = order.Orders{}
+		for _, limitOrders := range value[int64(userId)] {
+			if limitOrders.Limit == nil {
+				fmt.Println("#################################")
+				fmt.Printf("the limmit of the order is nil %+v\n", limitOrders)
+				fmt.Println("#################################")
 
-		if orderBookOrders[i].Limit == nil {
-			fmt.Println("#################################")
-			fmt.Printf("the limmit of the order is nil %+v\n", orderBookOrders[i])
-			fmt.Println("#################################")
+				continue
 
-			continue
+			}
+			o := order.Order{
+				UserID:    limitOrders.UserId,
+				ID:        limitOrders.ID,
+				Price:     limitOrders.Limit.Price,
+				Size:      limitOrders.Size,
+				Bid:       limitOrders.Bid,
+				Timestamp: limitOrders.Timestamp,
+			}
+			// orders[i] = o
 
-		}
-		o := order.Order{
-			UserID:    orderBookOrders[i].UserId,
-			ID:        orderBookOrders[i].ID,
-			Price:     orderBookOrders[i].Limit.Price,
-			Size:      orderBookOrders[i].Size,
-			Bid:       orderBookOrders[i].Bid,
-			Timestamp: orderBookOrders[i].Timestamp,
-		}
-		// orders[i] = o
+			m := orderResponse.Orders[market]
+			if o.Bid {
+				m.Bids = append(m.Bids, o)
+				orderResponse.Orders[market] = m
+			} else {
+				// orderResponse.Asks = append(orderResponse.Asks, o)
+				m.Asks = append(m.Asks, o)
+				orderResponse.Orders[market] = m
 
-		if o.Bid {
-			orderResponse.Bids = append(orderResponse.Bids, o)
-		} else {
-			orderResponse.Asks = append(orderResponse.Asks, o)
+			}
 		}
 	}
 

@@ -59,9 +59,13 @@ type (
 
 	StopOrderState string
 
-	GetOrdersResponse struct {
+	Orders struct {
 		Asks []Order
 		Bids []Order
+	}
+
+	GetOrdersResponse struct {
+		Orders map[Market]Orders
 	}
 
 	PlaceOrderRequest struct {

@@ -27,11 +27,12 @@ type PlaceOrderParams struct {
 	UserId int64
 	Bid    bool
 	// just ffor limit order
-	Price float64
-	Size  float64
+	Price  float64
+	Size   float64
+	Market order.Market
 }
 
-func (c *Client) GetTrades(market string) ([]*orderbook.Trade, error) {
+func (c *Client) GetTrades(market order.Market) ([]*orderbook.Trade, error) {
 	e := fmt.Sprintf("%s/trades/%s", Endpoint, market)
 	req, err := http.NewRequest(http.MethodGet, e, nil)
 	if err != nil {
@@ -64,9 +65,13 @@ func (c *Client) GetOrders(userId int64) (*order.GetOrdersResponse, error) {
 		return nil, err
 	}
 
+	// orders := order.GetOrdersResponse{
+	// 	Asks: []order.Order{},
+	// 	Bids: []order.Order{},
+	// }
+
 	orders := order.GetOrdersResponse{
-		Asks: []order.Order{},
-		Bids: []order.Order{},
+		Orders: make(map[order.Market]order.Orders),
 	}
 
 	if err = json.NewDecoder(resp.Body).Decode(&orders); err != nil {
@@ -83,7 +88,7 @@ func (c *Client) PlaceMarketOrder(p *PlaceOrderParams) (*order.PlaceOrderRespons
 		Type:   order.MarketOrder,
 		Bid:    p.Bid,
 		Size:   p.Size,
-		Market: order.MarketETH,
+		Market: p.Market,
 	}
 
 	body, err := json.Marshal(params)
@@ -115,9 +120,9 @@ func (c *Client) PlaceMarketOrder(p *PlaceOrderParams) (*order.PlaceOrderRespons
 
 }
 
-func (c *Client) GetBestBid() (float64, error) {
+func (c *Client) GetBestBid(market order.Market) (float64, error) {
 	bestPrice := 0.0
-	e := fmt.Sprintf("%s/book/ETH/bid", Endpoint)
+	e := fmt.Sprintf("%s/book/%s/bid", Endpoint, market)
 
 	req, err := http.NewRequest(http.MethodGet, e, nil)
 
@@ -141,9 +146,9 @@ func (c *Client) GetBestBid() (float64, error) {
 
 }
 
-func (c *Client) GetBestAsk() (float64, error) {
+func (c *Client) GetBestAsk(market order.Market) (float64, error) {
 	bestPrice := 0.0
-	e := fmt.Sprintf("%s/book/ETH/ask", Endpoint)
+	e := fmt.Sprintf("%s/book/%s/ask", Endpoint, market)
 
 	req, err := http.NewRequest(http.MethodGet, e, nil)
 
@@ -190,7 +195,7 @@ func (c *Client) PlaceLimitOrder(p *PlaceOrderParams) (*order.PlaceOrderResponse
 		Bid:    p.Bid,
 		Size:   p.Size,
 		Price:  p.Price,
-		Market: order.MarketETH,
+		Market: p.Market,
 	}
 
 	body, err := json.Marshal(params)
