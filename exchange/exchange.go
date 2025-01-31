@@ -25,11 +25,13 @@ type (
 )
 
 type Exchange struct {
-	Mu            sync.RWMutex
-	EthClient     *ethclient.Client
-	btcClient     *rpcclient.Client
-	Users         map[int64]*user.User          // orderId => User
-	Orders        map[int64][]*limit.LimitOrder // ordeers map a user to his orders
+	Mu        sync.RWMutex
+	EthClient *ethclient.Client
+	btcClient *rpcclient.Client
+	Users     map[int64]*user.User // orderId => User
+
+	Orders map[order.Market]map[int64][]*limit.LimitOrder // ordeers map a user to his orders
+
 	ETHPrivateKey *ecdsa.PrivateKey
 	BTCAddress    string
 	Orderbook     map[order.Market]*orderbook.Orderbook
@@ -42,16 +44,19 @@ func NewExchange(ethPrivateKey string, btcAdress string, ethClient *ethclient.Cl
 	}
 
 	orderbooks := make(map[order.Market]*orderbook.Orderbook)
-
 	orderbooks[order.MarketETH] = orderbook.NewOrderbook()
 	orderbooks[order.MarketBTC] = orderbook.NewOrderbook()
+
+	orders := make(map[order.Market]map[int64][]*limit.LimitOrder)
+	orders[order.MarketETH] = make(map[int64][]*limit.LimitOrder)
+	orders[order.MarketBTC] = make(map[int64][]*limit.LimitOrder)
 
 	return &Exchange{
 
 		EthClient:     ethClient,
 		btcClient:     btcClient,
 		Users:         make(map[int64]*user.User),
-		Orders:        make(map[int64][]*limit.LimitOrder),
+		Orders:        orders,
 		ETHPrivateKey: pk,
 		Orderbook:     orderbooks,
 		BTCAddress:    btcAdress,

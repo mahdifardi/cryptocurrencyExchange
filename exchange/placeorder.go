@@ -40,17 +40,25 @@ func (ex *Exchange) HandlePlaceMarketOrder(market order.Market, newOrder *limit.
 		sumPrice += matches[i].Price
 	}
 	averagePrice := sumPrice / float64((len(matchedOreders)))
-	log.Printf("filled Market order =>%d | size [%.2f] | average price [%.2f]", newOrder.ID, totalSizeFilled, averagePrice)
+	log.Printf("filled Market order => market [%s] | orderId [%d] | size [%.2f] | average price [%.2f]", market, newOrder.ID, totalSizeFilled, averagePrice)
 
 	return matches, matchedOreders
 }
 
-func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, order *limit.LimitOrder) error {
+func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, newOrder *limit.LimitOrder) error {
 	ob := ex.Orderbook[market]
-	ob.PlaceLimitOrder(price, order)
+	ob.PlaceLimitOrder(price, newOrder)
 
 	ex.Mu.Lock()
-	ex.Orders[order.UserId] = append(ex.Orders[order.UserId], order)
+	// if market == order.MarketETH {
+
+	// 	ex.Orders[order.MarketETH][newOrder.UserId] = append(ex.Orders[order.MarketETH][newOrder.UserId], newOrder)
+	// } else if market == order.MarketBTC {
+	// 	ex.Orders[order.MarketBTC][newOrder.UserId] = append(ex.Orders[order.MarketBTC][newOrder.UserId], newOrder)
+
+	// }
+
+	ex.Orders[market][newOrder.UserId] = append(ex.Orders[market][newOrder.UserId], newOrder)
 	ex.Mu.Unlock()
 	// user, ok := ex.Users[order.UserId]
 	// if !ok {
@@ -70,7 +78,7 @@ func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, or
 
 	// return result
 
-	log.Printf("new limit order =>type [%t] price [%.2f] size [%.2f]", order.Bid, order.Limit.Price, order.Size)
+	log.Printf("new limit order => market [%s]type [%t] price [%.2f] size [%.2f]", market, newOrder.Bid, newOrder.Limit.Price, newOrder.Size)
 
 	return nil
 }
@@ -122,16 +130,17 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 
 		//delete the orders off the user wwhen filled
 		// for _, matchedOreder := range matchedOreders {
+
 		for j := 0; j < len(matchedOreders); j++ {
 			// userOrders :=  ex.Orders[matchedOreders[j].UserId]
-			for i := 0; i < len(ex.Orders[matchedOreders[j].UserId]); i++ {
+			for i := 0; i < len(ex.Orders[placeOrderData.Market][matchedOreders[j].UserId]); i++ {
 
 				// if the size is 0 ew can delete order
-				if ex.Orders[matchedOreders[j].UserId][i].IsFilled() {
+				if ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i].IsFilled() {
 
-					if matchedOreders[j].ID == ex.Orders[matchedOreders[j].UserId][i].ID {
-						ex.Orders[matchedOreders[j].UserId][i] = ex.Orders[matchedOreders[j].UserId][len(ex.Orders[matchedOreders[j].UserId])-1]
-						ex.Orders[matchedOreders[j].UserId] = ex.Orders[matchedOreders[j].UserId][:len(ex.Orders[matchedOreders[j].UserId])-1]
+					if matchedOreders[j].ID == ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i].ID {
+						ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i] = ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][len(ex.Orders[order.MarketETH][matchedOreders[j].UserId])-1]
+						ex.Orders[placeOrderData.Market][matchedOreders[j].UserId] = ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][:len(ex.Orders[order.MarketETH][matchedOreders[j].UserId])-1]
 					}
 				}
 			}
@@ -142,6 +151,7 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 	resp := &order.PlaceOrderResponse{
 		OrderId: newOrder.ID,
 	}
+
 	return c.JSON(200, resp)
 
 }

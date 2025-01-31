@@ -8,6 +8,7 @@ import (
 
 	"github.com/mahdifardi/cryptocurrencyExchange/client"
 	"github.com/mahdifardi/cryptocurrencyExchange/config"
+	"github.com/mahdifardi/cryptocurrencyExchange/order"
 	"github.com/mahdifardi/cryptocurrencyExchange/server"
 )
 
@@ -19,7 +20,7 @@ var (
 	tick = 2 * time.Second
 )
 
-func marketOrderPlacer(config config.Config, c *client.Client) {
+func marketOrderPlacer(config config.Config, c *client.Client, market order.Market) {
 	ticker := time.NewTicker(5 * time.Second)
 
 	for {
@@ -28,6 +29,7 @@ func marketOrderPlacer(config config.Config, c *client.Client) {
 			UserId: config.User1ID,
 			Bid:    false,
 			Size:   1000.0,
+			Market: market,
 		}
 
 		orderResp, err := c.PlaceMarketOrder(newmarketSellOrder)
@@ -39,6 +41,7 @@ func marketOrderPlacer(config config.Config, c *client.Client) {
 			UserId: config.User3ID,
 			Bid:    false,
 			Size:   100.0,
+			Market: market,
 		}
 
 		orderResp, err = c.PlaceMarketOrder(marketSellOrder)
@@ -50,6 +53,7 @@ func marketOrderPlacer(config config.Config, c *client.Client) {
 			UserId: config.User3ID,
 			Bid:    true,
 			Size:   100.0,
+			Market: market,
 		}
 
 		orderResp, err = c.PlaceMarketOrder(marketBuyOrder)
@@ -61,19 +65,19 @@ func marketOrderPlacer(config config.Config, c *client.Client) {
 	}
 }
 
-func makeMarketSimple(config config.Config, c *client.Client) {
+func makeMarketSimple(config config.Config, c *client.Client, market order.Market) {
 	ticker := time.NewTicker(tick)
 
 	for {
 
-		trades, err := c.GetTrades("ETH")
+		trades, err := c.GetTrades(market)
 		if err != nil {
 			panic(err)
 		}
 
 		if len(trades) > 0 {
 
-			fmt.Printf("exchange price => %.2f\n", trades[len(trades)-1].Price)
+			fmt.Printf("exchange %s price => %.2f\n", market, trades[len(trades)-1].Price)
 		}
 
 		orders, err := c.GetOrders(config.User2ID)
@@ -81,27 +85,28 @@ func makeMarketSimple(config config.Config, c *client.Client) {
 			log.Println(err)
 		}
 
-		bestBidPrice, err := c.GetBestBid()
+		bestBidPrice, err := c.GetBestBid(market)
 		if err != nil {
 			panic(err)
 		}
 
-		bestAskPrice, err := c.GetBestAsk()
+		bestAskPrice, err := c.GetBestAsk(market)
 		if err != nil {
 			panic(err)
 		}
 
 		spread := math.Abs(bestBidPrice - bestAskPrice)
-		fmt.Println("exchange spread", spread)
+		fmt.Printf("exchange spread %s : %v\n", market, spread)
 
 		//place the bids
-		if len(orders.Bids) < maxOrders {
+		if len(orders.Orders[market].Bids) < maxOrders {
 
 			bidLimit := &client.PlaceOrderParams{
 				UserId: config.User2ID,
 				Bid:    true,
 				Price:  bestBidPrice + 100,
 				Size:   1_000.0,
+				Market: market,
 			}
 
 			bidOrderResp, err := c.PlaceLimitOrder(bidLimit)
@@ -113,13 +118,14 @@ func makeMarketSimple(config config.Config, c *client.Client) {
 		}
 
 		// place the asks
-		if len(orders.Asks) < maxOrders {
+		if len(orders.Orders[order.MarketETH].Asks) < maxOrders {
 
 			askLimit := &client.PlaceOrderParams{
 				UserId: config.User2ID,
 				Bid:    false,
 				Price:  bestAskPrice - 100,
 				Size:   1_000.0,
+				Market: market,
 			}
 
 			askOrderResp, err := c.PlaceLimitOrder(askLimit)
@@ -130,20 +136,21 @@ func makeMarketSimple(config config.Config, c *client.Client) {
 			// myAsks[askLimit.Price] = askOrderResp.OrderId
 		}
 
-		fmt.Println("best ask price", bestAskPrice)
-		fmt.Println("best bid price", bestBidPrice)
+		fmt.Printf("best ask price %s market: %v\n", market, bestAskPrice)
+		fmt.Printf("best bid price %s market: %v\n", market, bestBidPrice)
 
 		<-ticker.C
 
 	}
 }
 
-func seedMarket(config config.Config, c *client.Client) error {
+func seedMarket(config config.Config, c *client.Client, market order.Market) error {
 	ask := &client.PlaceOrderParams{
 		UserId: config.User1ID,
 		Bid:    false,
 		Price:  10_000.0,
 		Size:   10_000.0,
+		Market: market,
 	}
 
 	bid := &client.PlaceOrderParams{
@@ -151,6 +158,7 @@ func seedMarket(config config.Config, c *client.Client) error {
 		Bid:    true,
 		Price:  9_000.0,
 		Size:   10_000.0,
+		Market: market,
 	}
 
 	_, err := c.PlaceLimitOrder(ask)
@@ -179,81 +187,19 @@ func main() {
 
 	c := client.NewClient()
 
-	if err := seedMarket(config, c); err != nil {
+	if err := seedMarket(config, c, order.MarketETH); err != nil {
+		panic(err)
+	}
+	if err := seedMarket(config, c, order.MarketBTC); err != nil {
 		panic(err)
 	}
 
-	go makeMarketSimple(config, c)
+	go makeMarketSimple(config, c, order.MarketETH)
+	go makeMarketSimple(config, c, order.MarketBTC)
+
 	time.Sleep(1 * time.Second)
-	marketOrderPlacer(config, c)
-
-	// for {
-	// 	limitParams1 := &client.PlaceOrderParams{
-	// 		UserId: 8888,
-	// 		Bid:    false,
-	// 		Price:  10_000.0,
-	// 		Size:   5_000_000.0,
-	// 	}
-
-	// 	_, err := c.PlaceLimitOrder(limitParams1)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	limitParams2 := &client.PlaceOrderParams{
-	// 		UserId: 8888,
-	// 		Bid:    false,
-	// 		Price:  9_000.0,
-	// 		Size:   500_000.0,
-	// 	}
-
-	// 	_, err = c.PlaceLimitOrder(limitParams2)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	buyLimitOrder := &client.PlaceOrderParams{
-	// 		UserId: 8888,
-	// 		Bid:    true,
-	// 		Price:  11_000.0,
-	// 		Size:   500_000.0,
-	// 	}
-
-	// 	_, err = c.PlaceLimitOrder(buyLimitOrder)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	//fmt.Println("limit order ffrom the calient => ", resp.OrderId)
-
-	// 	//	fmt.Println("market order ffrom the calient => ", resp.OrderId)
-
-	// 	marketParams := &client.PlaceOrderParams{
-	// 		UserId: 9999,
-	// 		Bid:    true,
-	// 		Size:   1_000_000.0,
-	// 	}
-
-	// 	_, err = c.PlaceMarketOrder(marketParams)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	bestBidPrice, err := c.GetBestBid()
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	fmt.Printf("best bid price: %.2f\n", bestBidPrice)
-
-	// 	bestAskPrice, err := c.GetBestAsk()
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	fmt.Printf("best ask price: %.2f\n", bestAskPrice)
-
-	// 	time.Sleep(1 * time.Second)
-
-	// }
+	go marketOrderPlacer(config, c, order.MarketETH)
+	go marketOrderPlacer(config, c, order.MarketBTC)
 
 	select {}
 }
