@@ -12,7 +12,7 @@ import (
 func (ex *Exchange) HandlePlaceMarketOrder(market order.Market, newOrder *limit.LimitOrder) ([]limit.Match, []*order.MatchedOrder) {
 	ob := ex.Orderbook[market]
 
-	matches := ob.PlaceMarketOrder(newOrder)
+	matches := ob.PlaceMarketOrder(newOrder, market)
 	matchedOreders := make([]*order.MatchedOrder, len(matches))
 
 	isBid := false
@@ -122,7 +122,7 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 
 	//Market
 	if placeOrderData.Type == order.MarketOrder {
-		matches, matchedOreders := ex.HandlePlaceMarketOrder(market, newOrder)
+		matches, matchedOrders := ex.HandlePlaceMarketOrder(market, newOrder)
 
 		if err := ex.HandleMatches(market, matches); err != nil {
 			return c.JSON(500, err)
@@ -131,21 +131,36 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 		//delete the orders off the user wwhen filled
 		// for _, matchedOreder := range matchedOreders {
 
-		for j := 0; j < len(matchedOreders); j++ {
-			// userOrders :=  ex.Orders[matchedOreders[j].UserId]
-			for i := 0; i < len(ex.Orders[placeOrderData.Market][matchedOreders[j].UserId]); i++ {
-
-				// if the size is 0 ew can delete order
-				if ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i].IsFilled() {
-
-					if matchedOreders[j].ID == ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i].ID {
-						ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i] = ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][len(ex.Orders[order.MarketETH][matchedOreders[j].UserId])-1]
-						ex.Orders[placeOrderData.Market][matchedOreders[j].UserId] = ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][:len(ex.Orders[order.MarketETH][matchedOreders[j].UserId])-1]
-					}
+		for j := 0; j < len(matchedOrders); j++ {
+			ordersForUser := ex.Orders[placeOrderData.Market][matchedOrders[j].UserId]
+			// Iterate backwards
+			for i := len(ordersForUser) - 1; i >= 0; i-- {
+				if ordersForUser[i].IsFilled() && matchedOrders[j].ID == ordersForUser[i].ID {
+					// Remove the element at index i
+					ordersForUser = append(ordersForUser[:i], ordersForUser[i+1:]...)
 				}
 			}
-
+			ex.Orders[placeOrderData.Market][matchedOrders[j].UserId] = ordersForUser
 		}
+
+		// m := len(matchedOreders)
+		// for j := 0; j < m; j++ {
+		// 	// userOrders :=  ex.Orders[matchedOreders[j].UserId]
+		// 	n := len(ex.Orders[placeOrderData.Market][matchedOreders[j].UserId])
+		// 	for i := 0; i < n; i++ {
+
+		// 		// if the size is 0 ew can delete order
+		// 		if ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i].IsFilled() {
+
+		// 			if matchedOreders[j].ID == ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i].ID {
+		// 				// log.Printf("len j:%d, j:%d, len i:%d i:%d", len(matchedOreders), j, len(ex.Orders[placeOrderData.Market][matchedOreders[j].UserId]), i)
+		// 				ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][i] = ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][len(ex.Orders[placeOrderData.Market][matchedOreders[j].UserId])-1]
+		// 				ex.Orders[placeOrderData.Market][matchedOreders[j].UserId] = ex.Orders[placeOrderData.Market][matchedOreders[j].UserId][:len(ex.Orders[placeOrderData.Market][matchedOreders[j].UserId])-1]
+		// 			}
+		// 		}
+		// 	}
+
+		// }
 	}
 
 	resp := &order.PlaceOrderResponse{

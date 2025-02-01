@@ -39,12 +39,22 @@ func StartServer(config config.Config) {
 	// btcUser3Address := "bcrt1q4xq3432rt7lj7a3zwazcy0eqgdxrv3gghy4mjh"
 	btcUser3Address := config.BtcUser3Address
 
-	ex, err := exchange.NewExchange(exchange.ExchangePrivateKey, exchange.ExchangeBTCAdress, ethClient, btcClient)
+	ex, err := exchange.NewExchange(config.UstdContractAddress, exchange.ExchangePrivateKey, exchange.ExchangeBTCAdress, ethClient, btcClient)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// go ex.TransferBTC(btcClient, btcUser1Address, btcUser2Address, .00002)
+
+	// privKey, _ := crypto.HexToECDSA("4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d")
+	// usdtAddress := common.HexToAddress("0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab")
+	// receiverAddress := common.HexToAddress("0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0")
+	// amount := big.NewInt(1000000) // Transfer 1 USDT (assuming 6 decimals)
+
+	// err = ex.TransferUSDT(ethClient, privKey, usdtAddress, receiverAddress, amount)
+	// if err != nil {
+	// 	log.Fatal("USDT Transfer failed:", err)
+	// }
 
 	go ex.ProcessStopLimitOrders(order.MarketETH)
 	go ex.ProcessStopMarketOrders(order.MarketETH)

@@ -32,12 +32,14 @@ type Exchange struct {
 
 	Orders map[order.Market]map[int64][]*limit.LimitOrder // ordeers map a user to his orders
 
-	ETHPrivateKey *ecdsa.PrivateKey
-	BTCAddress    string
-	Orderbook     map[order.Market]*orderbook.Orderbook
+	ETHPrivateKey       *ecdsa.PrivateKey
+	BTCAddress          string
+	UstdContractAddress string
+
+	Orderbook map[order.Market]*orderbook.Orderbook
 }
 
-func NewExchange(ethPrivateKey string, btcAdress string, ethClient *ethclient.Client, btcClient *rpcclient.Client) (*Exchange, error) {
+func NewExchange(ustdContractAddress string, ethPrivateKey string, btcAdress string, ethClient *ethclient.Client, btcClient *rpcclient.Client) (*Exchange, error) {
 	pk, err := crypto.HexToECDSA(ethPrivateKey)
 	if err != nil {
 		return nil, err
@@ -46,19 +48,22 @@ func NewExchange(ethPrivateKey string, btcAdress string, ethClient *ethclient.Cl
 	orderbooks := make(map[order.Market]*orderbook.Orderbook)
 	orderbooks[order.MarketETH] = orderbook.NewOrderbook()
 	orderbooks[order.MarketBTC] = orderbook.NewOrderbook()
+	orderbooks[order.MarketUSDT] = orderbook.NewOrderbook()
 
 	orders := make(map[order.Market]map[int64][]*limit.LimitOrder)
 	orders[order.MarketETH] = make(map[int64][]*limit.LimitOrder)
 	orders[order.MarketBTC] = make(map[int64][]*limit.LimitOrder)
+	orders[order.MarketUSDT] = make(map[int64][]*limit.LimitOrder)
 
 	return &Exchange{
 
-		EthClient:     ethClient,
-		btcClient:     btcClient,
-		Users:         make(map[int64]*user.User),
-		Orders:        orders,
-		ETHPrivateKey: pk,
-		Orderbook:     orderbooks,
-		BTCAddress:    btcAdress,
+		EthClient:           ethClient,
+		btcClient:           btcClient,
+		Users:               make(map[int64]*user.User),
+		Orders:              orders,
+		ETHPrivateKey:       pk,
+		Orderbook:           orderbooks,
+		BTCAddress:          btcAdress,
+		UstdContractAddress: ustdContractAddress,
 	}, nil
 }

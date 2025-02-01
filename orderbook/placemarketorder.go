@@ -5,14 +5,15 @@ import (
 	"time"
 
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
+	"github.com/mahdifardi/cryptocurrencyExchange/order"
 )
 
-func (ob *Orderbook) PlaceMarketOrder(o *limit.LimitOrder) []limit.Match {
+func (ob *Orderbook) PlaceMarketOrder(o *limit.LimitOrder, market order.Market) []limit.Match {
 	matches := []limit.Match{}
 
 	if o.Bid {
 		if o.Size > ob.AskTotalVolume() {
-			panic(fmt.Errorf("not enough volume [size: %.2f] for market order [size: %.2f]", ob.AskTotalVolume(), o.Size))
+			panic(fmt.Errorf("market [%s] | not enough volume [size: %.2f] for market order [size: %.2f]", market, ob.AskTotalVolume(), o.Size))
 		}
 		for _, limit := range ob.Asks() {
 			limitMatches := limit.Fill(o)
@@ -25,7 +26,7 @@ func (ob *Orderbook) PlaceMarketOrder(o *limit.LimitOrder) []limit.Match {
 		}
 	} else {
 		if o.Size > ob.BidTotalVolume() {
-			panic(fmt.Errorf("not enough volume [size: %.2f] for market order [size: %.2f]", ob.BidTotalVolume(), o.Size))
+			panic(fmt.Errorf("market [%s] | not enough volume [size: %.2f] for market order [size: %.2f]", market, ob.BidTotalVolume(), o.Size))
 		}
 		for _, limit := range ob.Bids() {
 			limitMatches := limit.Fill(o)
