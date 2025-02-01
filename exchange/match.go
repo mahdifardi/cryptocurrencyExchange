@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
 	"github.com/mahdifardi/cryptocurrencyExchange/order"
@@ -22,32 +23,59 @@ func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) er
 			return fmt.Errorf("user not found: %d", match.Bid.ID)
 		}
 
-		if market == order.MarketETH {
+		switch market {
+		case order.MarketETH:
 
 			toAddress := crypto.PubkeyToAddress(toUser.ETHPrivateKey.PublicKey)
-
-			//exchange ffees
-			// exchangePublicKey := ex.PrivateKey.Public()
-			// exchangePublicKeyECDSA, ok := exchangePublicKey.(*ecdsa.PublicKey)
-			// if !ok {
-			// 	return fmt.Errorf("error casting public key to ECDSA")
-			// }
-
 			amount := big.NewInt(int64(match.SizeFilled))
 
 			err := transferETH(ex.EthClient, fromUser.ETHPrivateKey, toAddress, amount)
 			if err != nil {
 				return err
 			}
-		} else if market == order.MarketBTC {
 
+		case order.MarketBTC:
 			err := transferBTC(ex.btcClient, fromUser.BTCAdress, toUser.BTCAdress, match.SizeFilled)
 			if err != nil {
 				return err
 			}
-		} else {
-			return fmt.Errorf("market does not supported")
+		case order.MarketUSDT:
+			toAddress := crypto.PubkeyToAddress(toUser.ETHPrivateKey.PublicKey)
+			amount := big.NewInt(int64(match.SizeFilled))
+			usdtAddress := common.HexToAddress(ex.UstdContractAddress)
+
+			err := transferUSDT(ex.EthClient, fromUser.ETHPrivateKey, usdtAddress, toAddress, amount)
+			if err != nil {
+				return err
+			}
 		}
+
+		// if market == order.MarketETH {
+
+		// 	toAddress := crypto.PubkeyToAddress(toUser.ETHPrivateKey.PublicKey)
+
+		// 	//exchange ffees
+		// 	// exchangePublicKey := ex.PrivateKey.Public()
+		// 	// exchangePublicKeyECDSA, ok := exchangePublicKey.(*ecdsa.PublicKey)
+		// 	// if !ok {
+		// 	// 	return fmt.Errorf("error casting public key to ECDSA")
+		// 	// }
+
+		// 	amount := big.NewInt(int64(match.SizeFilled))
+
+		// 	err := transferETH(ex.EthClient, fromUser.ETHPrivateKey, toAddress, amount)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// } else if market == order.MarketBTC {
+
+		// 	err := transferBTC(ex.btcClient, fromUser.BTCAdress, toUser.BTCAdress, match.SizeFilled)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// } else {
+		// 	return fmt.Errorf("market does not supported")
+		// }
 
 	}
 

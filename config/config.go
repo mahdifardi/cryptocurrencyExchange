@@ -27,6 +27,8 @@ type Config struct {
 	EthUser2Address string `json:"EthUser2Address"`
 	EthUser3Address string `json:"EthUser3Address"`
 
+	UstdContractAddress string `json:"UstdContractAddress"`
+
 	User1ID int64 `json:"User1ID"`
 	User2ID int64 `json:"User2ID"`
 	User3ID int64 `json:"User3ID"`

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
+	"github.com/mahdifardi/cryptocurrencyExchange/order"
 )
 
 func assert(t *testing.T, a, b any) {
@@ -54,7 +55,7 @@ func TestPlaceMarketOrder(t *testing.T) {
 	ob.PlaceLimitOrder(10_000, sellOrder)
 
 	buyOrder := limit.NewLimitOrder(true, 10, 0)
-	matches := ob.PlaceMarketOrder(buyOrder)
+	matches := ob.PlaceMarketOrder(buyOrder, order.MarketETH)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.asks), 1)
@@ -86,7 +87,7 @@ func TestPlaceMultiMarketOrder(t *testing.T) {
 	assert(t, ob.BidTotalVolume(), 15.0)
 
 	sellOrder := limit.NewLimitOrder(false, 10, 0)
-	matches := ob.PlaceMarketOrder(sellOrder)
+	matches := ob.PlaceMarketOrder(sellOrder, order.MarketETH)
 
 	assert(t, ob.BidTotalVolume(), 5.0)
 	assert(t, len(matches), 2)
@@ -148,7 +149,7 @@ func TestLastMarketTrades(t *testing.T) {
 	ob.PlaceLimitOrder(price, sellOrder)
 
 	marketOrder := limit.NewLimitOrder(true, 10, 0)
-	matches := ob.PlaceMarketOrder(marketOrder)
+	matches := ob.PlaceMarketOrder(marketOrder, order.MarketETH)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.Trades), 1)

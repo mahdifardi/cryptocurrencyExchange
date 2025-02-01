@@ -193,13 +193,19 @@ func main() {
 	if err := seedMarket(config, c, order.MarketBTC); err != nil {
 		panic(err)
 	}
+	if err := seedMarket(config, c, order.MarketUSDT); err != nil {
+		panic(err)
+	}
 
 	go makeMarketSimple(config, c, order.MarketETH)
 	go makeMarketSimple(config, c, order.MarketBTC)
+	go makeMarketSimple(config, c, order.MarketUSDT)
 
 	time.Sleep(1 * time.Second)
+
 	go marketOrderPlacer(config, c, order.MarketETH)
 	go marketOrderPlacer(config, c, order.MarketBTC)
+	go marketOrderPlacer(config, c, order.MarketUSDT)
 
 	select {}
 }
