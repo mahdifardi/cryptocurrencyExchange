@@ -35,6 +35,12 @@ type (
 		Timestamp int64
 	}
 
+	OrderBookResponse struct {
+		Market Market
+		State  string
+		Data   OrderBookData
+	}
+
 	OrderBookData struct {
 		TotalBidVolume   float64
 		TotalAskVolume   float64
@@ -65,8 +71,14 @@ type (
 		Bids []Order
 	}
 
+	GeneralStopOrders struct {
+		StopLimitOrders  []StopOrder
+		StopMarketOrders []StopOrder
+	}
+
 	GetOrdersResponse struct {
-		Orders map[Market]Orders
+		LimitOrders map[Market]Orders
+		StopOrders  map[Market]GeneralStopOrders
 	}
 
 	PlaceOrderRequest struct {

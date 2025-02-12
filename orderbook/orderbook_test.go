@@ -160,3 +160,79 @@ func TestLastMarketTrades(t *testing.T) {
 	assert(t, trade.Size, matches[0].SizeFilled)
 
 }
+
+func TestMakeStopLimitOrder(t *testing.T) {
+	ob := NewOrderbook()
+
+	price := 40_000.0
+	sellOrder := limit.NewLimitOrder(true, 3, 0)
+	ob.PlaceLimitOrder(price, sellOrder)
+
+	buyMarketOrder := limit.NewLimitOrder(false, 3, 1)
+	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT)
+
+	assert(t, len(matches), 1)
+	assert(t, len(ob.Trades), 1)
+
+	assert(t, ob.Trades[len(ob.Trades)-1].Price, price)
+
+	stopBidLimitOrderprice := 38_000.0
+	stopBidLimitOrderstopPrice := 42_000.0
+	bidStopLimitOrder := order.NewStopOrder(true, true, 4.0, stopBidLimitOrderprice, stopBidLimitOrderstopPrice, 2)
+	ob.PlaceStopOrder(bidStopLimitOrder)
+
+	assert(t, len(ob.stopLimitOrders), 1)
+
+	stopAskLimitOrderprice := 39_000.0
+	stopAskLimitOrderstopPrice := 39_000.0
+	askStopLimitOrder := order.NewStopOrder(false, true, 9.0, stopAskLimitOrderprice, stopAskLimitOrderstopPrice, 2)
+	ob.PlaceStopOrder(askStopLimitOrder)
+
+	assert(t, len(ob.stopLimitOrders), 2)
+
+}
+
+func TestMakeStopMarketOrder(t *testing.T) {
+	ob := NewOrderbook()
+
+	price := 40_000.0
+	sellOrder := limit.NewLimitOrder(true, 3, 0)
+	ob.PlaceLimitOrder(price, sellOrder)
+
+	buyMarketOrder := limit.NewLimitOrder(false, 3, 1)
+	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT)
+
+	assert(t, len(matches), 1)
+	assert(t, len(ob.Trades), 1)
+
+	assert(t, ob.Trades[len(ob.Trades)-1].Price, price)
+
+	price2 := 43_000.0
+	sellOrder2 := limit.NewLimitOrder(true, 5, 1)
+	ob.PlaceLimitOrder(price2, sellOrder2)
+
+	askStopMarketOrderPrice := 43_000.0
+	askStopMarketorderStopPrice := 45_000.0
+	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, 3)
+	ob.PlaceStopOrder(askStopMarketOrder)
+
+	assert(t, len(ob.stopMarketOrders), 1)
+	assert(t, ob.stopMarketOrders[0].State, order.Pending)
+
+}
+
+func TestCancelStopOrder(t *testing.T) {
+	ob := NewOrderbook()
+
+	askStopMarketOrderPrice := 43_000.0
+	askStopMarketorderStopPrice := 45_000.0
+	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, 3)
+	ob.PlaceStopOrder(askStopMarketOrder)
+
+	assert(t, len(ob.stopMarketOrders), 1)
+	assert(t, ob.stopMarketOrders[len(ob.stopMarketOrders)-1].State, order.Pending)
+
+	ob.CancelStopOrder(askStopMarketOrder)
+	assert(t, ob.stopMarketOrders[len(ob.stopMarketOrders)-1].State, order.Canceled)
+
+}

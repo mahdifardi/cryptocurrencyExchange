@@ -39,8 +39,13 @@ func (ex *Exchange) ProcessStopLimitOrders(market order.Market) {
 				ob.PlaceLimitOrder(stopLimitOrder.Price, limitOrder)
 				stopLimitOrder.State = order.Triggered
 
-				if stopLimitOrder.Bid {
+				for _, stOrder := range ex.StopOrders[market][stopLimitOrder.UserID] {
+					if stOrder.ID == stopLimitOrder.ID {
+						stOrder.State = order.Triggered
+					}
+				}
 
+				if stopLimitOrder.Bid {
 					fmt.Printf("stop Bid limit order triggered =>%d | price [%.2f] | size [%.2f]", stopLimitOrder.ID, stopLimitOrder.Price, stopLimitOrder.Size)
 				} else {
 					fmt.Printf("stop Ask limit order triggered =>%d | price [%.2f] | size [%.2f]", stopLimitOrder.ID, stopLimitOrder.Price, stopLimitOrder.Size)
@@ -81,8 +86,13 @@ func (ex *Exchange) ProcessStopMarketOrders(market order.Market) {
 				ob.PlaceMarketOrder(marketOrder, market)
 				stopMarketOrder.State = order.Triggered
 
-				if stopMarketOrder.Bid {
+				for _, stOrder := range ex.StopOrders[market][stopMarketOrder.UserID] {
+					if stOrder.ID == stopMarketOrder.ID {
+						stOrder.State = order.Triggered
+					}
+				}
 
+				if stopMarketOrder.Bid {
 					fmt.Printf("stop Bid Market order triggered =>%d | price [%.2f] | size [%.2f]", stopMarketOrder.ID, stopMarketOrder.Price, stopMarketOrder.Size)
 				} else {
 					fmt.Printf("stop Ask Market order triggered =>%d | price [%.2f] | size [%.2f]", stopMarketOrder.ID, stopMarketOrder.Price, stopMarketOrder.Size)

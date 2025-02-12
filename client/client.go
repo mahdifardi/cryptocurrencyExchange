@@ -71,7 +71,8 @@ func (c *Client) GetOrders(userId int64) (*order.GetOrdersResponse, error) {
 	// }
 
 	orders := order.GetOrdersResponse{
-		Orders: make(map[order.Market]order.Orders),
+		LimitOrders: make(map[order.Market]order.Orders),
+		StopOrders:  make(map[order.Market]order.GeneralStopOrders),
 	}
 
 	if err = json.NewDecoder(resp.Body).Decode(&orders); err != nil {

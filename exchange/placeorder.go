@@ -58,7 +58,7 @@ func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, ne
 
 	// }
 
-	ex.Orders[market][newOrder.UserId] = append(ex.Orders[market][newOrder.UserId], newOrder)
+	ex.LimitOrders[market][newOrder.UserId] = append(ex.LimitOrders[market][newOrder.UserId], newOrder)
 	ex.Mu.Unlock()
 	// user, ok := ex.Users[order.UserId]
 	// if !ok {
@@ -94,6 +94,8 @@ func (ex *Exchange) HandlePlaceStopOrder(c echo.Context) error {
 
 	ob := ex.Orderbook[market]
 	ob.PlaceStopOrder(newOrder)
+
+	ex.StopOrders[market][placeStopOrderData.UserID] = append(ex.StopOrders[market][placeStopOrderData.UserID], newOrder)
 
 	resp := &order.PlaceStopOrderResponse{
 		StopOrderId: newOrder.ID,
@@ -132,7 +134,7 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 		// for _, matchedOreder := range matchedOreders {
 
 		for j := 0; j < len(matchedOrders); j++ {
-			ordersForUser := ex.Orders[placeOrderData.Market][matchedOrders[j].UserId]
+			ordersForUser := ex.LimitOrders[placeOrderData.Market][matchedOrders[j].UserId]
 			// Iterate backwards
 			for i := len(ordersForUser) - 1; i >= 0; i-- {
 				if ordersForUser[i].IsFilled() && matchedOrders[j].ID == ordersForUser[i].ID {
@@ -140,7 +142,7 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 					ordersForUser = append(ordersForUser[:i], ordersForUser[i+1:]...)
 				}
 			}
-			ex.Orders[placeOrderData.Market][matchedOrders[j].UserId] = ordersForUser
+			ex.LimitOrders[placeOrderData.Market][matchedOrders[j].UserId] = ordersForUser
 		}
 
 		// m := len(matchedOreders)

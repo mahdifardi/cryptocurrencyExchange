@@ -80,7 +80,7 @@ func StartServer(config config.Config) {
 	e.POST("/order", ex.HandlePlaceOrder)
 	e.GET("/order/:userId", ex.HandleGetOrders)
 	e.DELETE("/order/:market/:id", ex.CancelOrder)
-	e.DELETE("/stoplimitorder/:market//:id", ex.CancelStopLimitOrder)
+	e.DELETE("/stoplimitorder/:market/:id", ex.CancelStopLimitOrder)
 	e.DELETE("/stopmarketorder/:market/:id", ex.CancelStopMarketOrder)
 
 	e.POST("/stoporder", ex.HandlePlaceStopOrder)

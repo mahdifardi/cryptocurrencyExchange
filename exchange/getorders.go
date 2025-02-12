@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -30,7 +29,8 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 	// }
 
 	orderResponse := &order.GetOrdersResponse{
-		Orders: make(map[order.Market]order.Orders),
+		LimitOrders: make(map[order.Market]order.Orders),
+		StopOrders:  make(map[order.Market]order.GeneralStopOrders),
 	}
 
 	// orderResponse.Orders[order.MarketETH] = order.Orders{}
@@ -38,13 +38,13 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 
 	// orders := make([]Order, len(orderBookOrders))
 
-	for market, value := range ex.Orders {
-		orderResponse.Orders[market] = order.Orders{}
+	for market, value := range ex.LimitOrders {
+		orderResponse.LimitOrders[market] = order.Orders{}
 		for _, limitOrders := range value[int64(userId)] {
 			if limitOrders.Limit == nil {
-				fmt.Println("#################################")
-				fmt.Printf("the limmit of the order is nil %+v\n", limitOrders)
-				fmt.Println("#################################")
+				// fmt.Println("#################################")
+				// fmt.Printf("the limmit of the order is nil %+v\n", limitOrders)
+				// fmt.Println("#################################")
 
 				continue
 
@@ -59,14 +59,30 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 			}
 			// orders[i] = o
 
-			m := orderResponse.Orders[market]
+			m := orderResponse.LimitOrders[market]
 			if o.Bid {
 				m.Bids = append(m.Bids, o)
-				orderResponse.Orders[market] = m
+				orderResponse.LimitOrders[market] = m
 			} else {
 				// orderResponse.Asks = append(orderResponse.Asks, o)
 				m.Asks = append(m.Asks, o)
-				orderResponse.Orders[market] = m
+				orderResponse.LimitOrders[market] = m
+
+			}
+		}
+	}
+
+	for market, value := range ex.StopOrders {
+		orderResponse.StopOrders[market] = order.GeneralStopOrders{}
+		for _, stopOrder := range value[int64(userId)] {
+
+			m := orderResponse.StopOrders[market]
+			if stopOrder.Limit {
+				m.StopLimitOrders = append(m.StopLimitOrders, *stopOrder)
+				orderResponse.StopOrders[market] = m
+			} else {
+				m.StopMarketOrders = append(m.StopMarketOrders, *stopOrder)
+				orderResponse.StopOrders[market] = m
 
 			}
 		}

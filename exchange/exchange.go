@@ -30,7 +30,8 @@ type Exchange struct {
 	btcClient *rpcclient.Client
 	Users     map[int64]*user.User // orderId => User
 
-	Orders map[order.Market]map[int64][]*limit.LimitOrder // ordeers map a user to his orders
+	LimitOrders map[order.Market]map[int64][]*limit.LimitOrder // ordeers map a user to his orders
+	StopOrders  map[order.Market]map[int64][]*order.StopOrder  // ordeers map a user to his orders
 
 	ETHPrivateKey       *ecdsa.PrivateKey
 	BTCAddress          string
@@ -50,17 +51,23 @@ func NewExchange(ustdContractAddress string, ethPrivateKey string, btcAdress str
 	orderbooks[order.MarketBTC] = orderbook.NewOrderbook()
 	orderbooks[order.MarketUSDT] = orderbook.NewOrderbook()
 
-	orders := make(map[order.Market]map[int64][]*limit.LimitOrder)
-	orders[order.MarketETH] = make(map[int64][]*limit.LimitOrder)
-	orders[order.MarketBTC] = make(map[int64][]*limit.LimitOrder)
-	orders[order.MarketUSDT] = make(map[int64][]*limit.LimitOrder)
+	limitOrders := make(map[order.Market]map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketETH] = make(map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketBTC] = make(map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketUSDT] = make(map[int64][]*limit.LimitOrder)
+
+	stopOrders := make(map[order.Market]map[int64][]*order.StopOrder)
+	stopOrders[order.MarketETH] = make(map[int64][]*order.StopOrder)
+	stopOrders[order.MarketBTC] = make(map[int64][]*order.StopOrder)
+	stopOrders[order.MarketUSDT] = make(map[int64][]*order.StopOrder)
 
 	return &Exchange{
 
 		EthClient:           ethClient,
 		btcClient:           btcClient,
 		Users:               make(map[int64]*user.User),
-		Orders:              orders,
+		LimitOrders:         limitOrders,
+		StopOrders:          stopOrders,
 		ETHPrivateKey:       pk,
 		Orderbook:           orderbooks,
 		BTCAddress:          btcAdress,
