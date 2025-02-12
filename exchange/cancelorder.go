@@ -20,6 +20,8 @@ func (ex *Exchange) CancelOrder(c echo.Context) error {
 		ob = ex.Orderbook[order.MarketETH]
 	} else if order.Market(market) == order.MarketBTC {
 		ob = ex.Orderbook[order.MarketBTC]
+	} else if order.Market(market) == order.MarketUSDT {
+		ob = ex.Orderbook[order.MarketUSDT]
 	} else {
 		return c.JSON(http.StatusBadRequest, map[string]any{
 			"msg": "Market not supported",
@@ -53,6 +55,8 @@ func (ex *Exchange) CancelStopLimitOrder(c echo.Context) error {
 		ob = ex.Orderbook[order.MarketETH]
 	} else if order.Market(market) == order.MarketBTC {
 		ob = ex.Orderbook[order.MarketBTC]
+	} else if order.Market(market) == order.MarketUSDT {
+		ob = ex.Orderbook[order.MarketUSDT]
 	} else {
 		return c.JSON(http.StatusBadRequest, map[string]any{
 			"msg": "Market not supported",
@@ -83,6 +87,8 @@ func (ex *Exchange) CancelStopMarketOrder(c echo.Context) error {
 		ob = ex.Orderbook[order.MarketETH]
 	} else if order.Market(market) == order.MarketBTC {
 		ob = ex.Orderbook[order.MarketBTC]
+	} else if order.Market(market) == order.MarketUSDT {
+		ob = ex.Orderbook[order.MarketUSDT]
 	} else {
 		return c.JSON(http.StatusBadRequest, map[string]any{
 			"msg": "Market not supported",
