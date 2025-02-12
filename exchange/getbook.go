@@ -10,22 +10,24 @@ import (
 func (ex *Exchange) HandleGetBook(c echo.Context) error {
 	market := c.Param("market")
 
+	var response order.OrderBookResponse
+	response.Market = order.Market(market)
+
 	ob, ok := ex.Orderbook[order.Market(market)]
 
 	if !ok {
-		return c.JSON(http.StatusBadRequest, map[string]any{
-			"msg": "market not found",
-		})
+		response.State = "not supported"
+		return c.JSON(http.StatusBadRequest, response)
 	}
 
-	orderBookData := order.OrderBookData{
-		TotalBidVolume:   ob.BidTotalVolume(),
-		TotalAskVolume:   ob.AskTotalVolume(),
-		Asks:             []*order.Order{},
-		Bids:             []*order.Order{},
-		StopLimitOrders:  []*order.StopOrder{},
-		StopMarketOrders: []*order.StopOrder{},
-	}
+	response.State = "supported"
+
+	response.Data.TotalBidVolume = ob.BidTotalVolume()
+	response.Data.TotalAskVolume = ob.AskTotalVolume()
+	response.Data.Asks = []*order.Order{}
+	response.Data.Bids = []*order.Order{}
+	response.Data.StopLimitOrders = []*order.StopOrder{}
+	response.Data.StopMarketOrders = []*order.StopOrder{}
 
 	for _, limit := range ob.Asks() {
 		for _, lOrder := range limit.Orders {
@@ -37,7 +39,7 @@ func (ex *Exchange) HandleGetBook(c echo.Context) error {
 				Bid:       lOrder.Bid,
 				Timestamp: lOrder.Timestamp,
 			}
-			orderBookData.Asks = append(orderBookData.Asks, &o)
+			response.Data.Asks = append(response.Data.Asks, &o)
 		}
 	}
 
@@ -51,7 +53,7 @@ func (ex *Exchange) HandleGetBook(c echo.Context) error {
 				Bid:       lOrder.Bid,
 				Timestamp: lOrder.Timestamp,
 			}
-			orderBookData.Bids = append(orderBookData.Bids, &o)
+			response.Data.Bids = append(response.Data.Bids, &o)
 		}
 	}
 
@@ -68,7 +70,7 @@ func (ex *Exchange) HandleGetBook(c echo.Context) error {
 			Price:     stopLimitOrder.Price,
 			State:     stopLimitOrder.State,
 		}
-		orderBookData.StopLimitOrders = append(orderBookData.StopLimitOrders, &o)
+		response.Data.StopLimitOrders = append(response.Data.StopLimitOrders, &o)
 		// }
 	}
 
@@ -85,9 +87,9 @@ func (ex *Exchange) HandleGetBook(c echo.Context) error {
 			Price:     stopMarketOrder.Price,
 			State:     stopMarketOrder.State,
 		}
-		orderBookData.StopMarketOrders = append(orderBookData.StopMarketOrders, &o)
+		response.Data.StopMarketOrders = append(response.Data.StopMarketOrders, &o)
 		// }
 	}
 
-	return c.JSON(http.StatusOK, orderBookData)
+	return c.JSON(http.StatusOK, response)
 }

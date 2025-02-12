@@ -99,7 +99,7 @@ func makeMarketSimple(config config.Config, c *client.Client, market order.Marke
 		fmt.Printf("exchange spread %s : %v\n", market, spread)
 
 		//place the bids
-		if len(orders.Orders[market].Bids) < maxOrders {
+		if len(orders.LimitOrders[market].Bids) < maxOrders {
 
 			bidLimit := &client.PlaceOrderParams{
 				UserId: config.User2ID,
@@ -118,7 +118,7 @@ func makeMarketSimple(config config.Config, c *client.Client, market order.Marke
 		}
 
 		// place the asks
-		if len(orders.Orders[order.MarketETH].Asks) < maxOrders {
+		if len(orders.LimitOrders[order.MarketETH].Asks) < maxOrders {
 
 			askLimit := &client.PlaceOrderParams{
 				UserId: config.User2ID,

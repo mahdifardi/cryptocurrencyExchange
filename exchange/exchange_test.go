@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,6 +17,7 @@ import (
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
 	"github.com/mahdifardi/cryptocurrencyExchange/order"
 	"github.com/mahdifardi/cryptocurrencyExchange/orderbook"
+	"github.com/mahdifardi/cryptocurrencyExchange/user"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -353,4 +355,332 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	err = json.Unmarshal(rec.Body.Bytes(), &prMarketNOtSupport)
 	assert.NoError(t, err)
 	assert.Equal(t, "Market not supported", prMarketNOtSupport.Msg)
+}
+
+func TestGetBook(t *testing.T) {
+	e := echo.New()
+
+	ex := newExchange()
+	market := order.MarketETH
+
+	ob := ex.Orderbook[market]
+	stopMarketOrderPrice := 38_000.0
+	stopMarketOrderStopPrice := 39_000.0
+	stopMarketOrderSize := 5
+	stopMarketOrderUserId := 4
+	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId))
+
+	ob.PlaceStopOrder(stopMarketOrder)
+
+	tartget := fmt.Sprintf("/book/%v", market)
+	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/book/:market")
+	c.SetParamNames("market")
+	c.SetParamValues("ETH")
+
+	err := ex.HandleGetBook(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var pr order.OrderBookResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &pr)
+	assert.NoError(t, err)
+	assert.Equal(t, "supported", pr.State)
+	assert.Equal(t, len(pr.Data.StopMarketOrders), 1)
+
+	// rainy path market not supported
+
+	var notSupportedMarket = "AAA"
+	tartget = fmt.Sprintf("/book/%v", notSupportedMarket)
+	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/book/:market")
+	c.SetParamNames("market")
+	c.SetParamValues("notSupportedMarket")
+
+	err = ex.HandleGetBook(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var prMarketNotSupportd order.OrderBookResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &prMarketNotSupportd)
+	assert.NoError(t, err)
+	assert.Equal(t, "not supported", prMarketNotSupportd.State)
+}
+
+func TestGetOrders(t *testing.T) {
+	e := echo.New()
+
+	ex := newExchange()
+
+	config := readConfig()
+
+	btcUser1Address := config.BtcUser1Address
+	ethUser1PrivKey := config.EthUser1Address
+
+	user1 := user.NewUser(ethUser1PrivKey, btcUser1Address, config.User1ID)
+	ex.Users[user1.ID] = user1
+
+	// limit  order
+	jsonBody, _ := json.Marshal(order.PlaceOrderRequest{
+		UserID: user1.ID,
+		Type:   order.LimitOrder,
+		Bid:    true,
+		Size:   4,
+		Price:  34_000.0,
+		Market: order.MarketETH,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/order")
+
+	err := ex.HandlePlaceOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// stop limit order
+	jsonBody, _ = json.Marshal(order.PlaceStopOrderRequest{
+		UserID:    user1.ID,
+		Bid:       true,
+		Size:      3,
+		Price:     34_000.0,
+		StopPrice: 35_000.0,
+		Market:    order.MarketETH,
+		Limit:     true,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/stoporder")
+
+	err = ex.HandlePlaceStopOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// stop market order
+	jsonBody, _ = json.Marshal(order.PlaceStopOrderRequest{
+		UserID:    user1.ID,
+		Bid:       true,
+		Size:      3,
+		Price:     34_000.0,
+		StopPrice: 35_000.0,
+		Market:    order.MarketETH,
+		Limit:     false,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/stoporder")
+
+	err = ex.HandlePlaceStopOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// get Orders
+	tartget := fmt.Sprintf("/order/%v", user1.ID)
+	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/order/:userId")
+	c.SetParamNames("userId")
+	c.SetParamValues(strconv.Itoa(int(user1.ID)))
+
+	err = ex.HandleGetOrders(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var pr order.GetOrdersResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &pr)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketETH].Bids))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH].StopLimitOrders))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH].StopMarketOrders))
+
+}
+
+func TestPlaceOrder(t *testing.T) {
+	e := echo.New()
+
+	ex := newExchange()
+
+	config := readConfig()
+
+	btcUser1Address := config.BtcUser1Address
+
+	btcUser2Address := config.BtcUser2Address
+
+	ethUser1PrivKey := config.EthUser1Address
+
+	ethUser2PrivKey := config.EthUser2Address
+
+	user1 := user.NewUser(ethUser1PrivKey, btcUser1Address, config.User1ID)
+	ex.Users[user1.ID] = user1
+
+	user2 := user.NewUser(ethUser2PrivKey, btcUser2Address, config.User2ID)
+	ex.Users[user2.ID] = user2
+
+	// limit  order
+	jsonBody, _ := json.Marshal(order.PlaceOrderRequest{
+		UserID: user1.ID,
+		Type:   order.LimitOrder,
+		Bid:    true,
+		Size:   4,
+		Price:  34_000.0,
+		Market: order.MarketETH,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/order")
+
+	err := ex.HandlePlaceOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	// assert.Equal(t, ob.AskTotalVolume(), 44)
+
+	//market order
+	jsonBody, _ = json.Marshal(order.PlaceOrderRequest{
+		UserID: user2.ID,
+		Type:   order.MarketOrder,
+		Bid:    false,
+		Size:   4,
+		Price:  34_000.0,
+		Market: order.MarketETH,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/order")
+
+	err = ex.HandlePlaceOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+}
+
+func TestPlaceStopOrder(t *testing.T) {
+	e := echo.New()
+
+	ex := newExchange()
+
+	// stop limit order
+	jsonBody, _ := json.Marshal(order.PlaceStopOrderRequest{
+		UserID:    4,
+		Bid:       true,
+		Size:      3,
+		Price:     34_000.0,
+		StopPrice: 35_000.0,
+		Market:    order.MarketETH,
+		Limit:     true,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/stoporder")
+
+	err := ex.HandlePlaceStopOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// stop market order
+	jsonBody, _ = json.Marshal(order.PlaceStopOrderRequest{
+		UserID:    4,
+		Bid:       true,
+		Size:      3,
+		Price:     34_000.0,
+		StopPrice: 35_000.0,
+		Market:    order.MarketETH,
+		Limit:     false,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/stoporder")
+
+	err = ex.HandlePlaceStopOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestGetTrades(t *testing.T) {
+	e := echo.New()
+
+	ex := newExchange()
+
+	config := readConfig()
+
+	btcUser1Address := config.BtcUser1Address
+
+	btcUser2Address := config.BtcUser2Address
+
+	ethUser1PrivKey := config.EthUser1Address
+
+	ethUser2PrivKey := config.EthUser2Address
+
+	user1 := user.NewUser(ethUser1PrivKey, btcUser1Address, config.User1ID)
+	ex.Users[user1.ID] = user1
+
+	user2 := user.NewUser(ethUser2PrivKey, btcUser2Address, config.User2ID)
+	ex.Users[user2.ID] = user2
+
+	// limit  order
+	jsonBody, _ := json.Marshal(order.PlaceOrderRequest{
+		UserID: user1.ID,
+		Type:   order.LimitOrder,
+		Bid:    true,
+		Size:   4,
+		Price:  34_000.0,
+		Market: order.MarketETH,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/order")
+
+	err := ex.HandlePlaceOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	// assert.Equal(t, ob.AskTotalVolume(), 44)
+
+	//market order
+	jsonBody, _ = json.Marshal(order.PlaceOrderRequest{
+		UserID: user2.ID,
+		Type:   order.MarketOrder,
+		Bid:    false,
+		Size:   4,
+		Price:  34_000.0,
+		Market: order.MarketETH,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/order")
+
+	err = ex.HandlePlaceOrder(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// get trades
+
+	tartget := fmt.Sprintf("/trades/%v", order.MarketETH)
+	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetPath("/trades/:market")
+	c.SetParamNames("market")
+	c.SetParamValues(string(order.MarketETH))
+
+	err = ex.HandleGetTrades(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var pr []orderbook.Trade
+	err = json.Unmarshal(rec.Body.Bytes(), &pr)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(pr))
+
 }
