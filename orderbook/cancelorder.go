@@ -27,7 +27,7 @@ func (ob *Orderbook) CancelStopOrder(so *order.StopOrder) {
 		}
 	} else {
 		for i := 0; i < len(ob.stopMarketOrders); i++ {
-			if ob.stopMarketOrders[i] == so && ob.stopLimitOrders[i].State == order.Pending {
+			if ob.stopMarketOrders[i] == so && ob.stopMarketOrders[i].State == order.Pending {
 				ob.stopMarketOrders[i].State = order.Canceled
 				// ob.stopMarketOrders[i] = ob.stopMarketOrders[len(ob.stopMarketOrders)-1]
 				// ob.stopMarketOrders = ob.stopMarketOrders[:len(ob.stopMarketOrders)-1]

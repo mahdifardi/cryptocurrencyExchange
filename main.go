@@ -136,8 +136,8 @@ func makeMarketSimple(config config.Config, c *client.Client, market order.Marke
 			// myAsks[askLimit.Price] = askOrderResp.OrderId
 		}
 
-		fmt.Printf("best ask price %s market: %v\n", market, bestAskPrice)
-		fmt.Printf("best bid price %s market: %v\n", market, bestBidPrice)
+		// fmt.Printf("best ask price %s market: %v\n", market, bestAskPrice)
+		// fmt.Printf("best bid price %s market: %v\n", market, bestBidPrice)
 
 		<-ticker.C
 

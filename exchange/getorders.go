@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -42,9 +41,9 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 		orderResponse.Orders[market] = order.Orders{}
 		for _, limitOrders := range value[int64(userId)] {
 			if limitOrders.Limit == nil {
-				fmt.Println("#################################")
-				fmt.Printf("the limmit of the order is nil %+v\n", limitOrders)
-				fmt.Println("#################################")
+				// fmt.Println("#################################")
+				// fmt.Printf("the limmit of the order is nil %+v\n", limitOrders)
+				// fmt.Println("#################################")
 
 				continue
 
