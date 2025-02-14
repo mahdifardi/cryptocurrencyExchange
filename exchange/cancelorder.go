@@ -3,6 +3,7 @@ package exchange
 import (
 	"encoding/json"
 	"log"
+	"math/big"
 	"net/http"
 	"strconv"
 
@@ -41,15 +42,34 @@ func (ex *Exchange) CancelOrder(c echo.Context) error {
 		})
 	}
 
-	order, ok := ob.Orders[int64(id)]
+	o, ok := ob.Orders[int64(id)]
 	if !ok {
 		return c.JSON(http.StatusBadRequest, CancelOrderResponse{
 			Msg: "order not found",
 		})
 	}
-	ob.CancelOrder(order)
 
+	user, ok := ex.Users[o.UserId]
+	if !ok {
+		return c.JSON(http.StatusBadRequest, CancelOrderResponse{
+			Msg: "user of order not found",
+		})
+	}
+
+	ob.CancelOrder(o)
 	log.Println("order canceled id => ", id)
+
+	if o.Bid {
+		quoteAmount := new(big.Int).Mul(big.NewInt(int64(o.Limit.Price)), big.NewInt(int64(o.Size)))
+		userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+		userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
+		userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
+	} else {
+		baseAmount := big.NewInt(int64(o.Size))
+		userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+		userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
+		userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
+	}
 
 	return c.JSON(http.StatusOK, CancelOrderResponse{
 		Msg: "order canceled",
@@ -85,7 +105,26 @@ func (ex *Exchange) CancelStopLimitOrder(c echo.Context) error {
 	}
 	for _, stopLimitOrder := range ob.StopLimits() {
 		if stopLimitOrder.ID == int64(id) && stopLimitOrder.State != order.Canceled {
+			user, ok := ex.Users[stopLimitOrder.UserID]
+			if !ok {
+				return c.JSON(http.StatusBadRequest, CancelOrderResponse{
+					Msg: "user stoplimitorder not found",
+				})
+			}
 			ob.CancelStopOrder(stopLimitOrder)
+
+			if stopLimitOrder.Bid {
+				quoteAmount := new(big.Int).Mul(big.NewInt(int64(stopLimitOrder.Price)), big.NewInt(int64(stopLimitOrder.Size)))
+				userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+				userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
+				userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
+			} else {
+				baseAmount := big.NewInt(int64(stopLimitOrder.Size))
+				userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+				userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
+				userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
+			}
+
 			return c.JSON(http.StatusOK, CancelOrderResponse{
 				Msg: "stop limit order canceled",
 			})
