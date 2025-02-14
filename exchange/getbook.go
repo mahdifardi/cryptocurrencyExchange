@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -8,7 +9,11 @@ import (
 )
 
 func (ex *Exchange) HandleGetBook(c echo.Context) error {
-	market := c.Param("market")
+	// market := c.Param("market")
+	var market order.Market
+	if err := json.NewDecoder(c.Request().Body).Decode(&market); err != nil {
+		return err
+	}
 
 	var response order.OrderBookResponse
 	response.Market = order.Market(market)

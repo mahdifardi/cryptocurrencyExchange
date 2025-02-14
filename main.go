@@ -118,7 +118,8 @@ func makeMarketSimple(config config.Config, c *client.Client, market order.Marke
 		}
 
 		// place the asks
-		if len(orders.LimitOrders[order.MarketETH].Asks) < maxOrders {
+		// **************
+		if len(orders.LimitOrders[market].Asks) < maxOrders {
 
 			askLimit := &client.PlaceOrderParams{
 				UserId: config.User2ID,
@@ -187,25 +188,36 @@ func main() {
 
 	c := client.NewClient()
 
-	if err := seedMarket(config, c, order.MarketETH); err != nil {
-		panic(err)
-	}
-	if err := seedMarket(config, c, order.MarketBTC); err != nil {
-		panic(err)
-	}
-	if err := seedMarket(config, c, order.MarketUSDT); err != nil {
+	if err := seedMarket(config, c, order.MarketETH_Fiat); err != nil {
 		panic(err)
 	}
 
-	go makeMarketSimple(config, c, order.MarketETH)
-	go makeMarketSimple(config, c, order.MarketBTC)
-	go makeMarketSimple(config, c, order.MarketUSDT)
+	if err := seedMarket(config, c, order.MarketETH_USDT); err != nil {
+		panic(err)
+	}
+	if err := seedMarket(config, c, order.MarketBTC_Fiat); err != nil {
+		panic(err)
+	}
+	if err := seedMarket(config, c, order.MarketBTC_USDT); err != nil {
+		panic(err)
+	}
+	if err := seedMarket(config, c, order.MarketUSDT_Fiat); err != nil {
+		panic(err)
+	}
+
+	go makeMarketSimple(config, c, order.MarketETH_Fiat)
+	go makeMarketSimple(config, c, order.MarketETH_USDT)
+	go makeMarketSimple(config, c, order.MarketBTC_Fiat)
+	go makeMarketSimple(config, c, order.MarketBTC_USDT)
+	go makeMarketSimple(config, c, order.MarketUSDT_Fiat)
 
 	time.Sleep(1 * time.Second)
 
-	go marketOrderPlacer(config, c, order.MarketETH)
-	go marketOrderPlacer(config, c, order.MarketBTC)
-	go marketOrderPlacer(config, c, order.MarketUSDT)
+	go marketOrderPlacer(config, c, order.MarketETH_Fiat)
+	go marketOrderPlacer(config, c, order.MarketETH_USDT)
+	go marketOrderPlacer(config, c, order.MarketBTC_Fiat)
+	go marketOrderPlacer(config, c, order.MarketBTC_USDT)
+	go marketOrderPlacer(config, c, order.MarketUSDT_Fiat)
 
 	select {}
 }

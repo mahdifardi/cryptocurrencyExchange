@@ -55,7 +55,7 @@ func TestPlaceMarketOrder(t *testing.T) {
 	ob.PlaceLimitOrder(10_000, sellOrder)
 
 	buyOrder := limit.NewLimitOrder(true, 10, 0)
-	matches := ob.PlaceMarketOrder(buyOrder, order.MarketETH)
+	matches := ob.PlaceMarketOrder(buyOrder, order.MarketETH_Fiat)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.asks), 1)
@@ -87,7 +87,7 @@ func TestPlaceMultiMarketOrder(t *testing.T) {
 	assert(t, ob.BidTotalVolume(), 15.0)
 
 	sellOrder := limit.NewLimitOrder(false, 10, 0)
-	matches := ob.PlaceMarketOrder(sellOrder, order.MarketETH)
+	matches := ob.PlaceMarketOrder(sellOrder, order.MarketETH_Fiat)
 
 	assert(t, ob.BidTotalVolume(), 5.0)
 	assert(t, len(matches), 2)
@@ -149,7 +149,7 @@ func TestLastMarketTrades(t *testing.T) {
 	ob.PlaceLimitOrder(price, sellOrder)
 
 	marketOrder := limit.NewLimitOrder(true, 10, 0)
-	matches := ob.PlaceMarketOrder(marketOrder, order.MarketETH)
+	matches := ob.PlaceMarketOrder(marketOrder, order.MarketETH_Fiat)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.Trades), 1)
@@ -169,7 +169,7 @@ func TestMakeStopLimitOrder(t *testing.T) {
 	ob.PlaceLimitOrder(price, sellOrder)
 
 	buyMarketOrder := limit.NewLimitOrder(false, 3, 1)
-	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT)
+	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT_Fiat)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.Trades), 1)
@@ -200,7 +200,7 @@ func TestMakeStopMarketOrder(t *testing.T) {
 	ob.PlaceLimitOrder(price, sellOrder)
 
 	buyMarketOrder := limit.NewLimitOrder(false, 3, 1)
-	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT)
+	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT_Fiat)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.Trades), 1)
