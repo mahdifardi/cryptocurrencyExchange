@@ -245,18 +245,20 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	stopLimitOrderPrice := 38_000.0
 	stopLimitOrderStopPrice := 39_000.0
 	stopLimitOrderSize := 5
-	stopLimitOrderUserId := 4
-	stopLimitOrder := order.NewStopOrder(false, true, float64(stopLimitOrderSize), stopLimitOrderPrice, stopLimitOrderStopPrice, int64(stopLimitOrderUserId))
+	// stopLimitOrderUserId := 4
+	stopLimitOrder := order.NewStopOrder(false, true, float64(stopLimitOrderSize), stopLimitOrderPrice, stopLimitOrderStopPrice, user.ID)
 
 	ob.PlaceStopOrder(stopLimitOrder, market, user)
 
-	tartget := fmt.Sprintf("/stoplimitorder/ETH/%v", stopLimitOrder.ID)
-	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	jsonBody, _ := json.Marshal(market)
+
+	tartget := fmt.Sprintf("/stoplimitorder/%v", stopLimitOrder.ID)
+	req := httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/stoplimitorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(stopLimitOrder.ID)))
+	c.SetPath("/stoplimitorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(stopLimitOrder.ID)))
 
 	err := ex.CancelStopLimitOrder(c)
 	assert.NoError(t, err)
@@ -270,13 +272,13 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	//raniy path order id not exist
 	var notExistOrderId int = 101010
 
-	tartget = fmt.Sprintf("/stoplimitorder/ETH/%v", notExistOrderId)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	tartget = fmt.Sprintf("/stoplimitorder/%v", notExistOrderId)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stoplimitorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(notExistOrderId)))
+	c.SetPath("/stoplimitorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(notExistOrderId)))
 
 	err = ex.CancelStopLimitOrder(c)
 	assert.NoError(t, err)
@@ -290,14 +292,19 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	//raniy path Market Not supported
 
 	var id int = 3990
-	var notExistMarket string = "AAA"
-	tartget = fmt.Sprintf("/stoplimitorder/ETH/%v", id)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	var notExistMarket = order.Market{
+		Base:  "AAA",
+		Quote: "BBB",
+	}
+
+	notExistMarketJson, _ := json.Marshal(notExistMarket)
+	tartget = fmt.Sprintf("/stoplimitorder%v", id)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(notExistMarketJson))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stoplimitorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues(notExistMarket, strconv.Itoa(int(id)))
+	c.SetPath("/stoplimitorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(id)))
 
 	err = ex.CancelStopLimitOrder(c)
 	assert.NoError(t, err)
