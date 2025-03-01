@@ -74,7 +74,7 @@ func TestGetBestBid(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
-	market := order.MarketETH
+	market := order.MarketETH_Fiat
 
 	ob := ex.Orderbook[market]
 	bidOrderPrice := 38_000.0
@@ -82,13 +82,14 @@ func TestGetBestBid(t *testing.T) {
 	bidOrderUserId := 4
 	Bidorder := limit.NewLimitOrder(true, float64(bidOrderSize), int64(bidOrderUserId))
 	ob.PlaceLimitOrder(bidOrderPrice, Bidorder)
+	jsonBody, _ := json.Marshal(market)
 
-	req := httptest.NewRequest(http.MethodGet, "/book/ETH/bid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/book/bid", bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/book/:market/bid")
-	c.SetParamNames("market")
-	c.SetParamValues("ETH")
+	c.SetPath("/book/bid")
+	// c.SetParamNames("market")
+	// c.SetParamValues("ETH")
 
 	err := ex.HandleGetBestBid(c)
 	assert.NoError(t, err)
@@ -101,12 +102,13 @@ func TestGetBestBid(t *testing.T) {
 
 	// Rainy Path - Empty Orderbook
 	ex.Orderbook[market] = orderbook.NewOrderbook() // Reset orderbook to empty
-	req = httptest.NewRequest(http.MethodGet, "/book/ETH/bid", nil)
+	jsonBody, _ = json.Marshal(market)
+	req = httptest.NewRequest(http.MethodGet, "/book/bid", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/book/:market/bid")
-	c.SetParamNames("market")
-	c.SetParamValues("ETH")
+	c.SetPath("/book/bid")
+	// c.SetParamNames("market")
+	// c.SetParamValues("ETH")
 
 	err = ex.HandleGetBestBid(c)
 	assert.Error(t, err)
@@ -117,7 +119,7 @@ func TestGetBestAsk(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
-	market := order.MarketETH
+	market := order.MarketETH_Fiat
 
 	ob := ex.Orderbook[market]
 	askOrderPrice := 38_000.0
@@ -126,12 +128,13 @@ func TestGetBestAsk(t *testing.T) {
 	askOrder := limit.NewLimitOrder(false, float64(askOrderSize), int64(askOrderUserId))
 	ob.PlaceLimitOrder(askOrderPrice, askOrder)
 
-	req := httptest.NewRequest(http.MethodGet, "/book/ETH/bid", nil)
+	jsonBody, _ := json.Marshal(order.MarketETH_Fiat)
+	req := httptest.NewRequest(http.MethodGet, "/book/bid", bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/book/:market/ask")
-	c.SetParamNames("market")
-	c.SetParamValues("ETH")
+	c.SetPath("/book/bid")
+	// c.SetParamNames("market")
+	// c.SetParamValues("ETH")
 
 	err := ex.HandleGetBestAsk(c)
 	assert.NoError(t, err)
@@ -144,12 +147,13 @@ func TestGetBestAsk(t *testing.T) {
 
 	// Rainy Path - Empty Orderbook
 	ex.Orderbook[market] = orderbook.NewOrderbook() // Reset orderbook to empty
-	req = httptest.NewRequest(http.MethodGet, "/book/ETH/ask", nil)
+	jsonBody, _ = json.Marshal(order.MarketETH_Fiat)
+	req = httptest.NewRequest(http.MethodGet, "/book/ask", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/book/:market/ask")
-	c.SetParamNames("market")
-	c.SetParamValues("ETH")
+	c.SetPath("/book/ask")
+	// c.SetParamNames("market")
+	// c.SetParamValues("ETH")
 
 	err = ex.HandleGetBestAsk(c)
 	assert.Error(t, err)
@@ -160,7 +164,7 @@ func TestCancelOrder(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
-	market := order.MarketETH
+	market := order.MarketETH_Fiat
 
 	ob := ex.Orderbook[market]
 	askOrderPrice := 38_000.0
@@ -213,7 +217,7 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
-	market := order.MarketETH
+	market := order.MarketETH_Fiat
 
 	ob := ex.Orderbook[market]
 	stopLimitOrderPrice := 38_000.0
@@ -287,7 +291,7 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
-	market := order.MarketETH
+	market := order.MarketETH_Fiat
 
 	ob := ex.Orderbook[market]
 	stopMarketOrderPrice := 38_000.0
@@ -361,7 +365,7 @@ func TestGetBook(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
-	market := order.MarketETH
+	market := order.MarketETH_Fiat
 
 	ob := ex.Orderbook[market]
 	stopMarketOrderPrice := 38_000.0
@@ -372,13 +376,14 @@ func TestGetBook(t *testing.T) {
 
 	ob.PlaceStopOrder(stopMarketOrder)
 
-	tartget := fmt.Sprintf("/book/%v", market)
-	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	// tartget := fmt.Sprintf("/book/%v", market)
+	jsonBody, _ := json.Marshal(market)
+	req := httptest.NewRequest(http.MethodGet, "/book", bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/book/:market")
-	c.SetParamNames("market")
-	c.SetParamValues("ETH")
+	c.SetPath("/book")
+	// c.SetParamNames("market")
+	// c.SetParamValues("ETH")
 
 	err := ex.HandleGetBook(c)
 	assert.NoError(t, err)
@@ -392,14 +397,17 @@ func TestGetBook(t *testing.T) {
 
 	// rainy path market not supported
 
-	var notSupportedMarket = "AAA"
-	tartget = fmt.Sprintf("/book/%v", notSupportedMarket)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	// var notSupportedMarket = "AAA"
+	jsonBody, _ = json.Marshal(order.Market{
+		Base:  "AAA",
+		Quote: "Fiat",
+	})
+	req = httptest.NewRequest(http.MethodGet, "/book", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/book/:market")
-	c.SetParamNames("market")
-	c.SetParamValues("notSupportedMarket")
+	c.SetPath("/book")
+	// c.SetParamNames("market")
+	// c.SetParamValues("notSupportedMarket")
 
 	err = ex.HandleGetBook(c)
 	assert.NoError(t, err)
@@ -431,7 +439,7 @@ func TestGetOrders(t *testing.T) {
 		Bid:    true,
 		Size:   4,
 		Price:  34_000.0,
-		Market: order.MarketETH,
+		Market: order.MarketETH_Fiat,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
@@ -449,7 +457,7 @@ func TestGetOrders(t *testing.T) {
 		Size:      3,
 		Price:     34_000.0,
 		StopPrice: 35_000.0,
-		Market:    order.MarketETH,
+		Market:    order.MarketETH_Fiat,
 		Limit:     true,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
@@ -468,7 +476,7 @@ func TestGetOrders(t *testing.T) {
 		Size:      3,
 		Price:     34_000.0,
 		StopPrice: 35_000.0,
-		Market:    order.MarketETH,
+		Market:    order.MarketETH_Fiat,
 		Limit:     false,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
@@ -496,9 +504,9 @@ func TestGetOrders(t *testing.T) {
 	var pr order.GetOrdersResponse
 	err = json.Unmarshal(rec.Body.Bytes(), &pr)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketETH].Bids))
-	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH].StopLimitOrders))
-	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH].StopMarketOrders))
+	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketETH_Fiat].Bids))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH_Fiat].StopLimitOrders))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH_Fiat].StopMarketOrders))
 
 }
 
@@ -530,7 +538,7 @@ func TestPlaceOrder(t *testing.T) {
 		Bid:    true,
 		Size:   4,
 		Price:  34_000.0,
-		Market: order.MarketETH,
+		Market: order.MarketETH_Fiat,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
@@ -549,7 +557,7 @@ func TestPlaceOrder(t *testing.T) {
 		Bid:    false,
 		Size:   4,
 		Price:  34_000.0,
-		Market: order.MarketETH,
+		Market: order.MarketETH_Fiat,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
@@ -574,7 +582,7 @@ func TestPlaceStopOrder(t *testing.T) {
 		Size:      3,
 		Price:     34_000.0,
 		StopPrice: 35_000.0,
-		Market:    order.MarketETH,
+		Market:    order.MarketETH_Fiat,
 		Limit:     true,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
@@ -593,7 +601,7 @@ func TestPlaceStopOrder(t *testing.T) {
 		Size:      3,
 		Price:     34_000.0,
 		StopPrice: 35_000.0,
-		Market:    order.MarketETH,
+		Market:    order.MarketETH_Fiat,
 		Limit:     false,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/stoporder", bytes.NewBuffer(jsonBody))
@@ -634,7 +642,7 @@ func TestGetTrades(t *testing.T) {
 		Bid:    true,
 		Size:   4,
 		Price:  34_000.0,
-		Market: order.MarketETH,
+		Market: order.MarketETH_Fiat,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
@@ -653,7 +661,7 @@ func TestGetTrades(t *testing.T) {
 		Bid:    false,
 		Size:   4,
 		Price:  34_000.0,
-		Market: order.MarketETH,
+		Market: order.MarketETH_Fiat,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/order", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
@@ -666,13 +674,13 @@ func TestGetTrades(t *testing.T) {
 
 	// get trades
 
-	tartget := fmt.Sprintf("/trades/%v", order.MarketETH)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	jsonBody, _ = json.Marshal(order.MarketBTC_Fiat)
+	req = httptest.NewRequest(http.MethodGet, "/trades", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/trades/:market")
-	c.SetParamNames("market")
-	c.SetParamValues(string(order.MarketETH))
+	c.SetPath("/trades")
+	// c.SetParamNames("market")
+	// c.SetParamValues(string(order.MarketETH_Fiat))
 
 	err = ex.HandleGetTrades(c)
 	assert.NoError(t, err)

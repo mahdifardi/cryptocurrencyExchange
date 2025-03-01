@@ -2,11 +2,14 @@ package exchange
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"math/big"
 
 	"github.com/labstack/echo/v4"
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
 	"github.com/mahdifardi/cryptocurrencyExchange/order"
+	"github.com/mahdifardi/cryptocurrencyExchange/user"
 )
 
 func (ex *Exchange) HandlePlaceMarketOrder(market order.Market, newOrder *limit.LimitOrder) ([]limit.Match, []*order.MatchedOrder) {
@@ -45,8 +48,31 @@ func (ex *Exchange) HandlePlaceMarketOrder(market order.Market, newOrder *limit.
 	return matches, matchedOreders
 }
 
-func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, newOrder *limit.LimitOrder) error {
+func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, newOrder *limit.LimitOrder, user *user.User) error {
 	ob := ex.Orderbook[market]
+	if newOrder.Bid {
+		quoteAmount := new(big.Int).Mul(big.NewInt(int64(newOrder.Limit.Price)), big.NewInt(int64(newOrder.Size)))
+		userQuoteAvailableBalance := user.AssetBalances[order.Asset(market.Quote)].AvailableBalance
+		if userQuoteAvailableBalance.Cmp(quoteAmount) < 0 {
+			return fmt.Errorf("insufficient user %s balance: have %s, need %s", market.Quote, userQuoteAvailableBalance, quoteAmount)
+		} else {
+			userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+			userQuoteBalance.AvailableBalance = new(big.Int).Sub(userQuoteBalance.AvailableBalance, quoteAmount)
+			userQuoteBalance.ReservedBalance = new(big.Int).Add(userQuoteBalance.ReservedBalance, quoteAmount)
+			user.AssetBalances[order.Asset(market.Quote)] = userQuoteBalance
+		}
+	} else {
+		BaseAmount := big.NewInt(int64(newOrder.Size))
+		userBaseBalance := user.AssetBalances[order.Asset(market.Base)].AvailableBalance
+		if userBaseBalance.Cmp(BaseAmount) < 0 {
+			return fmt.Errorf("insufficient user %s balance: have %s, need %s", market.Quote, userBaseBalance, BaseAmount)
+		} else {
+			userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+			userBaseBalance.AvailableBalance = new(big.Int).Sub(userBaseBalance.AvailableBalance, BaseAmount)
+			userBaseBalance.ReservedBalance = new(big.Int).Add(userBaseBalance.ReservedBalance, BaseAmount)
+			user.AssetBalances[order.Asset(market.Base)] = userBaseBalance
+		}
+	}
 	ob.PlaceLimitOrder(price, newOrder)
 
 	ex.Mu.Lock()
@@ -93,7 +119,16 @@ func (ex *Exchange) HandlePlaceStopOrder(c echo.Context) error {
 	newOrder := order.NewStopOrder(placeStopOrderData.Bid, placeStopOrderData.Limit, placeStopOrderData.Size, placeStopOrderData.Price, placeStopOrderData.StopPrice, placeStopOrderData.UserID)
 
 	ob := ex.Orderbook[market]
-	ob.PlaceStopOrder(newOrder)
+
+	user, ok := ex.Users[placeStopOrderData.UserID]
+	if !ok {
+		return fmt.Errorf("user not found error")
+	}
+
+	err := ob.PlaceStopOrder(newOrder, market, user)
+	if err != nil {
+		return err
+	}
 
 	ex.StopOrders[market][placeStopOrderData.UserID] = append(ex.StopOrders[market][placeStopOrderData.UserID], newOrder)
 
@@ -115,8 +150,12 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 	newOrder := limit.NewLimitOrder(placeOrderData.Bid, placeOrderData.Size, placeOrderData.UserID)
 
 	if placeOrderData.Type == order.LimitOrder {
+		user, ok := ex.Users[placeOrderData.UserID]
+		if !ok {
+			return fmt.Errorf("user not found error")
+		}
 
-		if err := ex.HandlePlaceLimitOrder(market, placeOrderData.Price, newOrder); err != nil {
+		if err := ex.HandlePlaceLimitOrder(market, placeOrderData.Price, newOrder, user); err != nil {
 			return err
 		}
 

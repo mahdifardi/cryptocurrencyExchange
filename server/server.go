@@ -56,8 +56,8 @@ func StartServer(config config.Config) {
 	// 	log.Fatal("USDT Transfer failed:", err)
 	// }
 
-	go ex.ProcessStopLimitOrders(order.MarketETH)
-	go ex.ProcessStopMarketOrders(order.MarketETH)
+	go ex.ProcessStopLimitOrders(order.MarketETH_Fiat)
+	go ex.ProcessStopMarketOrders(order.MarketETH_USDT)
 
 	// pk1 := "829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"
 	ethUser1PrivKey := config.EthUser1Address
@@ -75,19 +75,27 @@ func StartServer(config config.Config) {
 	user3 := user.NewUser(ethUser3PrivKey, btcUser3Address, config.User3ID)
 	ex.Users[user3.ID] = user3
 
-	e.GET("/trades/:market", ex.HandleGetTrades)
+	// market in body
+	e.GET("/trades", ex.HandleGetTrades)
 
 	e.POST("/order", ex.HandlePlaceOrder)
 	e.GET("/order/:userId", ex.HandleGetOrders)
-	e.DELETE("/order/:market/:id", ex.CancelOrder)
-	e.DELETE("/stoplimitorder/:market/:id", ex.CancelStopLimitOrder)
-	e.DELETE("/stopmarketorder/:market/:id", ex.CancelStopMarketOrder)
+
+	//market in body
+	e.DELETE("/order/:id", ex.CancelOrder)
+	//market in body
+	e.DELETE("/stoplimitorder/:id", ex.CancelStopLimitOrder)
+	//market in body
+	e.DELETE("/stopmarketorder/:id", ex.CancelStopMarketOrder)
 
 	e.POST("/stoporder", ex.HandlePlaceStopOrder)
 
-	e.GET("/book/:market", ex.HandleGetBook)
-	e.GET("/book/:market/bid", ex.HandleGetBestBid)
-	e.GET("/book/:market/ask", ex.HandleGetBestAsk)
+	//market in body
+	e.GET("/book", ex.HandleGetBook)
+	//market in body
+	e.GET("/book/bid", ex.HandleGetBestBid)
+	//market in body
+	e.GET("/book/ask", ex.HandleGetBestAsk)
 
 	address := "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E"
 	balance, _ := ex.EthClient.BalanceAt(context.Background(), common.HexToAddress(address), nil)

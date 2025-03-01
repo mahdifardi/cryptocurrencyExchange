@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	MarketETH  Market = "ETH"
-	MarketBTC  Market = "BTC"
-	MarketUSDT Market = "USDT"
+	// MarketETH  Market = "ETH"
+	// MarketBTC  Market = "BTC"
+	// MarketUSDT Market = "USDT"
 
 	MarketOrder OrderType = "Market"
 	LimitOrder  OrderType = "Limit"
@@ -19,13 +19,51 @@ const (
 	Canceled  StopOrderState = "Canceled"
 )
 
+var Fiat string = "USD"
+
+var AsserETH Asset = "ETH"
+var AsserBTC Asset = "BTC"
+var AsserUSDT Asset = "USDT"
+var AssetFiat Asset = Asset(Fiat)
+
+// market pairs
+
+var MarketETH_Fiat Market = Market{
+	Base:  "ETH",
+	Quote: Fiat,
+}
+var MarketETH_USDT Market = Market{
+	Base:  "ETH",
+	Quote: "USDT",
+}
+
+var MarketBTC_Fiat Market = Market{
+	Base:  "BTC",
+	Quote: Fiat,
+}
+var MarketBTC_USDT Market = Market{
+	Base:  "BTC",
+	Quote: "USDT",
+}
+
+var MarketUSDT_Fiat Market = Market{
+	Base:  "USDT",
+	Quote: Fiat,
+}
+
 type (
-	Market string
+	// Market string
+	Asset string
 
 	OrderType string
 )
 
 type (
+	Market struct {
+		Base  string
+		Quote string
+	}
+
 	Order struct {
 		UserID    int64
 		ID        int64
@@ -115,6 +153,10 @@ type (
 		StopOrderId int64
 	}
 )
+
+func (m Market) String() string {
+	return m.Base + "/" + m.Quote
+}
 
 func (so StopOrders) Len() int           { return len(so) }
 func (so StopOrders) Swap(i, j int)      { so[i], so[j] = so[j], so[i] }

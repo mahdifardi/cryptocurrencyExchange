@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -13,7 +14,12 @@ type PriceResponse struct {
 }
 
 func (ex *Exchange) HandleGetBestBid(c echo.Context) error {
-	market := order.Market(c.Param("market"))
+	// market := order.Market(c.Param("market"))
+	var market order.Market
+	if err := json.NewDecoder(c.Request().Body).Decode(&market); err != nil {
+		return err
+	}
+
 	ob := ex.Orderbook[market]
 
 	if len(ob.Bids()) == 0 {
@@ -29,7 +35,12 @@ func (ex *Exchange) HandleGetBestBid(c echo.Context) error {
 }
 
 func (ex *Exchange) HandleGetBestAsk(c echo.Context) error {
-	market := order.Market(c.Param("market"))
+	// market := order.Market(c.Param("market"))
+	var market order.Market
+	if err := json.NewDecoder(c.Request().Body).Decode(&market); err != nil {
+		return err
+	}
+
 	ob := ex.Orderbook[market]
 
 	if len(ob.Asks()) == 0 {

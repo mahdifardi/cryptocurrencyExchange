@@ -1,6 +1,8 @@
 package orderbook
 
-import "github.com/mahdifardi/cryptocurrencyExchange/limit"
+import (
+	"github.com/mahdifardi/cryptocurrencyExchange/limit"
+)
 
 func (ob *Orderbook) PlaceLimitOrder(price float64, o *limit.LimitOrder) {
 	var limitOfOrder *limit.Limit

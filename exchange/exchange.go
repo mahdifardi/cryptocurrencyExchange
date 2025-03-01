@@ -46,20 +46,44 @@ func NewExchange(ustdContractAddress string, ethPrivateKey string, btcAdress str
 		return nil, err
 	}
 
+	//--------------- orderbook ---------------
 	orderbooks := make(map[order.Market]*orderbook.Orderbook)
-	orderbooks[order.MarketETH] = orderbook.NewOrderbook()
-	orderbooks[order.MarketBTC] = orderbook.NewOrderbook()
-	orderbooks[order.MarketUSDT] = orderbook.NewOrderbook()
+	// orderbooks[order.MarketETH] = orderbook.NewOrderbook()
+	orderbooks[order.MarketETH_Fiat] = orderbook.NewOrderbook()
+	orderbooks[order.MarketETH_USDT] = orderbook.NewOrderbook()
 
+	// orderbooks[order.MarketBTC] = orderbook.NewOrderbook()
+	orderbooks[order.MarketBTC_Fiat] = orderbook.NewOrderbook()
+	orderbooks[order.MarketBTC_USDT] = orderbook.NewOrderbook()
+
+	// orderbooks[order.MarketUSDT] = orderbook.NewOrderbook()
+	orderbooks[order.MarketUSDT_Fiat] = orderbook.NewOrderbook()
+
+	//--------------- limitorders ---------------
 	limitOrders := make(map[order.Market]map[int64][]*limit.LimitOrder)
-	limitOrders[order.MarketETH] = make(map[int64][]*limit.LimitOrder)
-	limitOrders[order.MarketBTC] = make(map[int64][]*limit.LimitOrder)
-	limitOrders[order.MarketUSDT] = make(map[int64][]*limit.LimitOrder)
+	// limitOrders[order.MarketETH] = make(map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketETH_Fiat] = make(map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketETH_USDT] = make(map[int64][]*limit.LimitOrder)
 
+	// limitOrders[order.MarketBTC] = make(map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketBTC_Fiat] = make(map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketBTC_USDT] = make(map[int64][]*limit.LimitOrder)
+
+	// limitOrders[order.MarketUSDT] = make(map[int64][]*limit.LimitOrder)
+	limitOrders[order.MarketUSDT_Fiat] = make(map[int64][]*limit.LimitOrder)
+
+	//--------------- stoporders ---------------
 	stopOrders := make(map[order.Market]map[int64][]*order.StopOrder)
-	stopOrders[order.MarketETH] = make(map[int64][]*order.StopOrder)
-	stopOrders[order.MarketBTC] = make(map[int64][]*order.StopOrder)
-	stopOrders[order.MarketUSDT] = make(map[int64][]*order.StopOrder)
+	// stopOrders[order.MarketETH] = make(map[int64][]*order.StopOrder)
+	stopOrders[order.MarketETH_Fiat] = make(map[int64][]*order.StopOrder)
+	stopOrders[order.MarketETH_USDT] = make(map[int64][]*order.StopOrder)
+
+	// stopOrders[order.MarketBTC] = make(map[int64][]*order.StopOrder)
+	stopOrders[order.MarketBTC_Fiat] = make(map[int64][]*order.StopOrder)
+	stopOrders[order.MarketBTC_USDT] = make(map[int64][]*order.StopOrder)
+
+	// stopOrders[order.MarketUSDT] = make(map[int64][]*order.StopOrder)
+	stopOrders[order.MarketUSDT_Fiat] = make(map[int64][]*order.StopOrder)
 
 	return &Exchange{
 
