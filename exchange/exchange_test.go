@@ -329,18 +329,20 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	stopMarketOrderPrice := 38_000.0
 	stopMarketOrderStopPrice := 39_000.0
 	stopMarketOrderSize := 5
-	stopMarketOrderUserId := 4
-	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId))
+	// stopMarketOrderUserId := 4
+	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, user.ID)
 
 	ob.PlaceStopOrder(stopMarketOrder, market, user)
 
-	tartget := fmt.Sprintf("/stopmarketorder/ETH/%v", stopMarketOrder.ID)
-	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	jsonBody, _ := json.Marshal(market)
+
+	tartget := fmt.Sprintf("/stopmarketorder/%v", stopMarketOrder.ID)
+	req := httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/stopmarketorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(stopMarketOrder.ID)))
+	c.SetPath("/stopmarketorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(stopMarketOrder.ID)))
 
 	err := ex.CancelStopMarketOrder(c)
 	assert.NoError(t, err)
@@ -354,13 +356,13 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	//raniy path order id not exist
 	var notExistOrderId int = 101010
 
-	tartget = fmt.Sprintf("/stopmarketorder/ETH/%v", notExistOrderId)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	tartget = fmt.Sprintf("/stopmarketorder/%v", notExistOrderId)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stopmarketorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(notExistOrderId)))
+	c.SetPath("/stopmarketorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(notExistOrderId)))
 
 	err = ex.CancelStopMarketOrder(c)
 	assert.NoError(t, err)
@@ -374,14 +376,19 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	//raniy path Market Not supported
 
 	var id int = 3990
-	var notExistMarket string = "AAA"
-	tartget = fmt.Sprintf("/stopmarketorder/ETH/%v", id)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	var notExistMarket = order.Market{
+		Base:  "AAA",
+		Quote: "BBB",
+	}
+
+	notExistMarketJson, _ := json.Marshal(notExistMarket)
+	tartget = fmt.Sprintf("/stopmarketorder/%v", id)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewReader(notExistMarketJson))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stopmarketorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues(notExistMarket, strconv.Itoa(int(id)))
+	c.SetPath("/stopmarketorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(id)))
 
 	err = ex.CancelStopMarketOrder(c)
 	assert.NoError(t, err)
