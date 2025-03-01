@@ -28,10 +28,12 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 	// 	Bids: []order.Order{},
 	// }
 
-	orderResponse := &order.GetOrdersResponse{
+	orderResponse := order.GetOrdersResponse{
 		LimitOrders: make(map[order.Market]order.Orders),
 		StopOrders:  make(map[order.Market]order.GeneralStopOrders),
 	}
+
+	// var orderResponse order.GetOrdersResponse
 
 	// orderResponse.Orders[order.MarketETH] = order.Orders{}
 	// orderResponse.Orders[order.MarketBTC] = order.Orders{}

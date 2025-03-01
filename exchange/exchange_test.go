@@ -466,12 +466,7 @@ func TestGetOrders(t *testing.T) {
 
 	ex := newExchange()
 
-	config := readConfig()
-
-	btcUser1Address := config.BtcUser1Address
-	ethUser1PrivKey := config.EthUser1Address
-
-	user1 := user.NewUser(ethUser1PrivKey, btcUser1Address, config.User1ID)
+	user1 := createUser()
 	ex.Users[user1.ID] = user1
 
 	// limit  order
@@ -543,7 +538,11 @@ func TestGetOrders(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var pr order.GetOrdersResponse
+	// var pr order.GetOrdersResponse
+	pr := order.GetOrdersResponse{
+		LimitOrders: make(map[order.Market]order.Orders),
+		StopOrders:  make(map[order.Market]order.GeneralStopOrders),
+	}
 	err = json.Unmarshal(rec.Body.Bytes(), &pr)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketETH_Fiat].Bids))

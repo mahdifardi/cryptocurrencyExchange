@@ -51,7 +51,7 @@ func (ex *Exchange) HandlePlaceMarketOrder(market order.Market, newOrder *limit.
 func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, newOrder *limit.LimitOrder, user *user.User) error {
 	ob := ex.Orderbook[market]
 	if newOrder.Bid {
-		quoteAmount := new(big.Int).Mul(big.NewInt(int64(newOrder.Limit.Price)), big.NewInt(int64(newOrder.Size)))
+		quoteAmount := new(big.Int).Mul(big.NewInt(int64(price)), big.NewInt(int64(newOrder.Size)))
 		userQuoteAvailableBalance := user.AssetBalances[order.Asset(market.Quote)].AvailableBalance
 		if userQuoteAvailableBalance.Cmp(quoteAmount) < 0 {
 			return fmt.Errorf("insufficient user %s balance: have %s, need %s", market.Quote, userQuoteAvailableBalance, quoteAmount)
