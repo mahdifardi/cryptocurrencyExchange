@@ -166,20 +166,26 @@ func TestCancelOrder(t *testing.T) {
 	ex := newExchange()
 	market := order.MarketETH_Fiat
 
-	ob := ex.Orderbook[market]
+	user := createUser()
+	ex.Users[user.ID] = user
+
+	// ob := ex.Orderbook[market]
 	askOrderPrice := 38_000.0
 	askOrderSize := 5
-	askOrderUserId := 4
-	askOrder := limit.NewLimitOrder(false, float64(askOrderSize), int64(askOrderUserId))
-	ob.PlaceLimitOrder(askOrderPrice, askOrder)
+	// askOrderUserId := 4
+	askOrder := limit.NewLimitOrder(false, float64(askOrderSize), user.ID)
+	// ob.PlaceLimitOrder(askOrderPrice, askOrder)
+	ex.HandlePlaceLimitOrder(market, askOrderPrice, askOrder, user)
 
-	tartget := fmt.Sprintf("/order/ETH/%v", askOrder.ID)
-	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	jsonBody, _ := json.Marshal(market)
+
+	tartget := fmt.Sprintf("/order/%v", askOrder.ID)
+	req := httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/order/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(askOrder.ID)))
+	c.SetPath("/order/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(askOrder.ID)))
 
 	err := ex.CancelOrder(c)
 	assert.NoError(t, err)
@@ -194,13 +200,13 @@ func TestCancelOrder(t *testing.T) {
 
 	var notExistOrderId int = 101010
 
-	tartget = fmt.Sprintf("/order/ETH/%v", notExistOrderId)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	tartget = fmt.Sprintf("/order/%v", notExistOrderId)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
 	c.SetPath("/order/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(notExistOrderId))
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(notExistOrderId))
 
 	err = ex.CancelOrder(c)
 	assert.NoError(t, err)
@@ -213,11 +219,27 @@ func TestCancelOrder(t *testing.T) {
 	assert.Equal(t, "order not found", prNotExist.Msg)
 }
 
+func createUser() *user.User {
+	config, err := config.LoadConfig("../config/config.json")
+	fmt.Println(config)
+	if err != nil {
+		log.Fatalf("config file error: %v", err)
+	}
+	btcUser3Address := config.BtcUser3Address
+	ethUser3PrivKey := config.EthUser3Address
+	user3 := user.NewUser(ethUser3PrivKey, btcUser3Address, config.User3ID)
+
+	return user3
+
+}
 func TestCancelStopLimitOrder(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
 	market := order.MarketETH_Fiat
+
+	user := createUser()
+	ex.Users[user.ID] = user
 
 	ob := ex.Orderbook[market]
 	stopLimitOrderPrice := 38_000.0
@@ -226,7 +248,7 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	stopLimitOrderUserId := 4
 	stopLimitOrder := order.NewStopOrder(false, true, float64(stopLimitOrderSize), stopLimitOrderPrice, stopLimitOrderStopPrice, int64(stopLimitOrderUserId))
 
-	ob.PlaceStopOrder(stopLimitOrder)
+	ob.PlaceStopOrder(stopLimitOrder, market, user)
 
 	tartget := fmt.Sprintf("/stoplimitorder/ETH/%v", stopLimitOrder.ID)
 	req := httptest.NewRequest(http.MethodGet, tartget, nil)
@@ -293,6 +315,9 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	ex := newExchange()
 	market := order.MarketETH_Fiat
 
+	user := createUser()
+	ex.Users[user.ID] = user
+
 	ob := ex.Orderbook[market]
 	stopMarketOrderPrice := 38_000.0
 	stopMarketOrderStopPrice := 39_000.0
@@ -300,7 +325,7 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	stopMarketOrderUserId := 4
 	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId))
 
-	ob.PlaceStopOrder(stopMarketOrder)
+	ob.PlaceStopOrder(stopMarketOrder, market, user)
 
 	tartget := fmt.Sprintf("/stopmarketorder/ETH/%v", stopMarketOrder.ID)
 	req := httptest.NewRequest(http.MethodGet, tartget, nil)
@@ -367,6 +392,9 @@ func TestGetBook(t *testing.T) {
 	ex := newExchange()
 	market := order.MarketETH_Fiat
 
+	user := createUser()
+	ex.Users[user.ID] = user
+
 	ob := ex.Orderbook[market]
 	stopMarketOrderPrice := 38_000.0
 	stopMarketOrderStopPrice := 39_000.0
@@ -374,7 +402,7 @@ func TestGetBook(t *testing.T) {
 	stopMarketOrderUserId := 4
 	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId))
 
-	ob.PlaceStopOrder(stopMarketOrder)
+	ob.PlaceStopOrder(stopMarketOrder, market, user)
 
 	// tartget := fmt.Sprintf("/book/%v", market)
 	jsonBody, _ := json.Marshal(market)
