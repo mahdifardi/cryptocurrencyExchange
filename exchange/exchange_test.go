@@ -166,20 +166,26 @@ func TestCancelOrder(t *testing.T) {
 	ex := newExchange()
 	market := order.MarketETH_Fiat
 
-	ob := ex.Orderbook[market]
+	user := createUser()
+	ex.Users[user.ID] = user
+
+	// ob := ex.Orderbook[market]
 	askOrderPrice := 38_000.0
 	askOrderSize := 5
-	askOrderUserId := 4
-	askOrder := limit.NewLimitOrder(false, float64(askOrderSize), int64(askOrderUserId))
-	ob.PlaceLimitOrder(askOrderPrice, askOrder)
+	// askOrderUserId := 4
+	askOrder := limit.NewLimitOrder(false, float64(askOrderSize), user.ID)
+	// ob.PlaceLimitOrder(askOrderPrice, askOrder)
+	ex.HandlePlaceLimitOrder(market, askOrderPrice, askOrder, user)
 
-	tartget := fmt.Sprintf("/order/ETH/%v", askOrder.ID)
-	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	jsonBody, _ := json.Marshal(market)
+
+	tartget := fmt.Sprintf("/order/%v", askOrder.ID)
+	req := httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/order/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(askOrder.ID)))
+	c.SetPath("/order/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(askOrder.ID)))
 
 	err := ex.CancelOrder(c)
 	assert.NoError(t, err)
@@ -194,13 +200,13 @@ func TestCancelOrder(t *testing.T) {
 
 	var notExistOrderId int = 101010
 
-	tartget = fmt.Sprintf("/order/ETH/%v", notExistOrderId)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	tartget = fmt.Sprintf("/order/%v", notExistOrderId)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
 	c.SetPath("/order/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(notExistOrderId))
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(notExistOrderId))
 
 	err = ex.CancelOrder(c)
 	assert.NoError(t, err)
@@ -213,28 +219,46 @@ func TestCancelOrder(t *testing.T) {
 	assert.Equal(t, "order not found", prNotExist.Msg)
 }
 
+func createUser() *user.User {
+	config, err := config.LoadConfig("../config/config.json")
+	fmt.Println(config)
+	if err != nil {
+		log.Fatalf("config file error: %v", err)
+	}
+	btcUser3Address := config.BtcUser3Address
+	ethUser3PrivKey := config.EthUser3Address
+	user3 := user.NewUser(ethUser3PrivKey, btcUser3Address, config.User3ID)
+
+	return user3
+
+}
 func TestCancelStopLimitOrder(t *testing.T) {
 	e := echo.New()
 
 	ex := newExchange()
 	market := order.MarketETH_Fiat
 
+	user := createUser()
+	ex.Users[user.ID] = user
+
 	ob := ex.Orderbook[market]
 	stopLimitOrderPrice := 38_000.0
 	stopLimitOrderStopPrice := 39_000.0
 	stopLimitOrderSize := 5
-	stopLimitOrderUserId := 4
-	stopLimitOrder := order.NewStopOrder(false, true, float64(stopLimitOrderSize), stopLimitOrderPrice, stopLimitOrderStopPrice, int64(stopLimitOrderUserId))
+	// stopLimitOrderUserId := 4
+	stopLimitOrder := order.NewStopOrder(false, true, float64(stopLimitOrderSize), stopLimitOrderPrice, stopLimitOrderStopPrice, user.ID)
 
-	ob.PlaceStopOrder(stopLimitOrder)
+	ob.PlaceStopOrder(stopLimitOrder, market, user)
 
-	tartget := fmt.Sprintf("/stoplimitorder/ETH/%v", stopLimitOrder.ID)
-	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	jsonBody, _ := json.Marshal(market)
+
+	tartget := fmt.Sprintf("/stoplimitorder/%v", stopLimitOrder.ID)
+	req := httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/stoplimitorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(stopLimitOrder.ID)))
+	c.SetPath("/stoplimitorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(stopLimitOrder.ID)))
 
 	err := ex.CancelStopLimitOrder(c)
 	assert.NoError(t, err)
@@ -248,13 +272,13 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	//raniy path order id not exist
 	var notExistOrderId int = 101010
 
-	tartget = fmt.Sprintf("/stoplimitorder/ETH/%v", notExistOrderId)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	tartget = fmt.Sprintf("/stoplimitorder/%v", notExistOrderId)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stoplimitorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(notExistOrderId)))
+	c.SetPath("/stoplimitorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(notExistOrderId)))
 
 	err = ex.CancelStopLimitOrder(c)
 	assert.NoError(t, err)
@@ -268,14 +292,19 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	//raniy path Market Not supported
 
 	var id int = 3990
-	var notExistMarket string = "AAA"
-	tartget = fmt.Sprintf("/stoplimitorder/ETH/%v", id)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	var notExistMarket = order.Market{
+		Base:  "AAA",
+		Quote: "BBB",
+	}
+
+	notExistMarketJson, _ := json.Marshal(notExistMarket)
+	tartget = fmt.Sprintf("/stoplimitorder%v", id)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(notExistMarketJson))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stoplimitorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues(notExistMarket, strconv.Itoa(int(id)))
+	c.SetPath("/stoplimitorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(id)))
 
 	err = ex.CancelStopLimitOrder(c)
 	assert.NoError(t, err)
@@ -293,22 +322,27 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	ex := newExchange()
 	market := order.MarketETH_Fiat
 
+	user := createUser()
+	ex.Users[user.ID] = user
+
 	ob := ex.Orderbook[market]
 	stopMarketOrderPrice := 38_000.0
 	stopMarketOrderStopPrice := 39_000.0
 	stopMarketOrderSize := 5
-	stopMarketOrderUserId := 4
-	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId))
+	// stopMarketOrderUserId := 4
+	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, user.ID)
 
-	ob.PlaceStopOrder(stopMarketOrder)
+	ob.PlaceStopOrder(stopMarketOrder, market, user)
 
-	tartget := fmt.Sprintf("/stopmarketorder/ETH/%v", stopMarketOrder.ID)
-	req := httptest.NewRequest(http.MethodGet, tartget, nil)
+	jsonBody, _ := json.Marshal(market)
+
+	tartget := fmt.Sprintf("/stopmarketorder/%v", stopMarketOrder.ID)
+	req := httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/stopmarketorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(stopMarketOrder.ID)))
+	c.SetPath("/stopmarketorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(stopMarketOrder.ID)))
 
 	err := ex.CancelStopMarketOrder(c)
 	assert.NoError(t, err)
@@ -322,13 +356,13 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	//raniy path order id not exist
 	var notExistOrderId int = 101010
 
-	tartget = fmt.Sprintf("/stopmarketorder/ETH/%v", notExistOrderId)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	tartget = fmt.Sprintf("/stopmarketorder/%v", notExistOrderId)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stopmarketorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues("ETH", strconv.Itoa(int(notExistOrderId)))
+	c.SetPath("/stopmarketorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(notExistOrderId)))
 
 	err = ex.CancelStopMarketOrder(c)
 	assert.NoError(t, err)
@@ -342,14 +376,19 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	//raniy path Market Not supported
 
 	var id int = 3990
-	var notExistMarket string = "AAA"
-	tartget = fmt.Sprintf("/stopmarketorder/ETH/%v", id)
-	req = httptest.NewRequest(http.MethodGet, tartget, nil)
+	var notExistMarket = order.Market{
+		Base:  "AAA",
+		Quote: "BBB",
+	}
+
+	notExistMarketJson, _ := json.Marshal(notExistMarket)
+	tartget = fmt.Sprintf("/stopmarketorder/%v", id)
+	req = httptest.NewRequest(http.MethodGet, tartget, bytes.NewReader(notExistMarketJson))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetPath("/stopmarketorder/:market/:id")
-	c.SetParamNames("market", "id")
-	c.SetParamValues(notExistMarket, strconv.Itoa(int(id)))
+	c.SetPath("/stopmarketorder/:id")
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(id)))
 
 	err = ex.CancelStopMarketOrder(c)
 	assert.NoError(t, err)
@@ -367,6 +406,9 @@ func TestGetBook(t *testing.T) {
 	ex := newExchange()
 	market := order.MarketETH_Fiat
 
+	user := createUser()
+	ex.Users[user.ID] = user
+
 	ob := ex.Orderbook[market]
 	stopMarketOrderPrice := 38_000.0
 	stopMarketOrderStopPrice := 39_000.0
@@ -374,7 +416,7 @@ func TestGetBook(t *testing.T) {
 	stopMarketOrderUserId := 4
 	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId))
 
-	ob.PlaceStopOrder(stopMarketOrder)
+	ob.PlaceStopOrder(stopMarketOrder, market, user)
 
 	// tartget := fmt.Sprintf("/book/%v", market)
 	jsonBody, _ := json.Marshal(market)
@@ -424,12 +466,7 @@ func TestGetOrders(t *testing.T) {
 
 	ex := newExchange()
 
-	config := readConfig()
-
-	btcUser1Address := config.BtcUser1Address
-	ethUser1PrivKey := config.EthUser1Address
-
-	user1 := user.NewUser(ethUser1PrivKey, btcUser1Address, config.User1ID)
+	user1 := createUser()
 	ex.Users[user1.ID] = user1
 
 	// limit  order
@@ -501,12 +538,16 @@ func TestGetOrders(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var pr order.GetOrdersResponse
+	// var pr order.GetOrdersResponse
+	pr := order.GetOrdersResponse{
+		LimitOrders: make(map[order.MarketString]order.Orders),
+		StopOrders:  make(map[order.MarketString]order.GeneralStopOrders),
+	}
 	err = json.Unmarshal(rec.Body.Bytes(), &pr)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketETH_Fiat].Bids))
-	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH_Fiat].StopLimitOrders))
-	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH_Fiat].StopMarketOrders))
+	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketString(order.MarketETH_Fiat.String())].Bids))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketString(order.MarketETH_Fiat.String())].StopLimitOrders))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketString(order.MarketETH_Fiat.String())].StopMarketOrders))
 
 }
 
@@ -575,9 +616,12 @@ func TestPlaceStopOrder(t *testing.T) {
 
 	ex := newExchange()
 
+	user := createUser()
+	ex.Users[user.ID] = user
+
 	// stop limit order
 	jsonBody, _ := json.Marshal(order.PlaceStopOrderRequest{
-		UserID:    4,
+		UserID:    user.ID,
 		Bid:       true,
 		Size:      3,
 		Price:     34_000.0,
@@ -596,7 +640,7 @@ func TestPlaceStopOrder(t *testing.T) {
 
 	// stop market order
 	jsonBody, _ = json.Marshal(order.PlaceStopOrderRequest{
-		UserID:    4,
+		UserID:    user.ID,
 		Bid:       true,
 		Size:      3,
 		Price:     34_000.0,
@@ -674,7 +718,7 @@ func TestGetTrades(t *testing.T) {
 
 	// get trades
 
-	jsonBody, _ = json.Marshal(order.MarketBTC_Fiat)
+	jsonBody, _ = json.Marshal(order.MarketETH_Fiat)
 	req = httptest.NewRequest(http.MethodGet, "/trades", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)

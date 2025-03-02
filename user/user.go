@@ -32,15 +32,15 @@ func NewUser(ethPrivateKey string, btcAdress string, userId int64) *User {
 	}
 
 	assetBalances[order.AsserBTC] = AssetBalance{
-		AvailableBalance: big.NewInt(0),
+		AvailableBalance: big.NewInt(1_000_000),
 		ReservedBalance:  big.NewInt(0),
 	}
 	assetBalances[order.AsserETH] = AssetBalance{
-		AvailableBalance: big.NewInt(0),
+		AvailableBalance: big.NewInt(1_000_000_000_000_000_000),
 		ReservedBalance:  big.NewInt(0),
 	}
 	assetBalances[order.AsserUSDT] = AssetBalance{
-		AvailableBalance: big.NewInt(0),
+		AvailableBalance: big.NewInt(1_000_000),
 		ReservedBalance:  big.NewInt(0),
 	}
 

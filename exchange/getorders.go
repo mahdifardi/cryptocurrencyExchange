@@ -28,10 +28,12 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 	// 	Bids: []order.Order{},
 	// }
 
-	orderResponse := &order.GetOrdersResponse{
-		LimitOrders: make(map[order.Market]order.Orders),
-		StopOrders:  make(map[order.Market]order.GeneralStopOrders),
+	orderResponse := order.GetOrdersResponse{
+		LimitOrders: make(map[order.MarketString]order.Orders),
+		StopOrders:  make(map[order.MarketString]order.GeneralStopOrders),
 	}
+
+	// var orderResponse order.GetOrdersResponse
 
 	// orderResponse.Orders[order.MarketETH] = order.Orders{}
 	// orderResponse.Orders[order.MarketBTC] = order.Orders{}
@@ -39,7 +41,7 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 	// orders := make([]Order, len(orderBookOrders))
 
 	for market, value := range ex.LimitOrders {
-		orderResponse.LimitOrders[market] = order.Orders{}
+		orderResponse.LimitOrders[order.MarketString(market.String())] = order.Orders{}
 		for _, limitOrders := range value[int64(userId)] {
 			if limitOrders.Limit == nil {
 				// fmt.Println("#################################")
@@ -59,30 +61,30 @@ func (ex *Exchange) HandleGetOrders(c echo.Context) error {
 			}
 			// orders[i] = o
 
-			m := orderResponse.LimitOrders[market]
+			m := orderResponse.LimitOrders[order.MarketString(market.String())]
 			if o.Bid {
 				m.Bids = append(m.Bids, o)
-				orderResponse.LimitOrders[market] = m
+				orderResponse.LimitOrders[order.MarketString(market.String())] = m
 			} else {
 				// orderResponse.Asks = append(orderResponse.Asks, o)
 				m.Asks = append(m.Asks, o)
-				orderResponse.LimitOrders[market] = m
+				orderResponse.LimitOrders[order.MarketString(market.String())] = m
 
 			}
 		}
 	}
 
 	for market, value := range ex.StopOrders {
-		orderResponse.StopOrders[market] = order.GeneralStopOrders{}
+		orderResponse.StopOrders[order.MarketString(market.String())] = order.GeneralStopOrders{}
 		for _, stopOrder := range value[int64(userId)] {
 
-			m := orderResponse.StopOrders[market]
+			m := orderResponse.StopOrders[order.MarketString(market.String())]
 			if stopOrder.Limit {
 				m.StopLimitOrders = append(m.StopLimitOrders, *stopOrder)
-				orderResponse.StopOrders[market] = m
+				orderResponse.StopOrders[order.MarketString(market.String())] = m
 			} else {
 				m.StopMarketOrders = append(m.StopMarketOrders, *stopOrder)
-				orderResponse.StopOrders[market] = m
+				orderResponse.StopOrders[order.MarketString(market.String())] = m
 
 			}
 		}

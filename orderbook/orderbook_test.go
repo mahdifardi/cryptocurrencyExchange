@@ -2,17 +2,38 @@ package orderbook
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"testing"
 
+	"github.com/mahdifardi/cryptocurrencyExchange/config"
 	"github.com/mahdifardi/cryptocurrencyExchange/limit"
 	"github.com/mahdifardi/cryptocurrencyExchange/order"
+	"github.com/mahdifardi/cryptocurrencyExchange/user"
 )
 
 func assert(t *testing.T, a, b any) {
 	if !reflect.DeepEqual(a, b) {
 		t.Errorf("%+v != %+v", a, b)
 	}
+}
+
+func createUser() (*user.User, *user.User) {
+	config, err := config.LoadConfig("../config/config.json")
+	fmt.Println(config)
+	if err != nil {
+		log.Fatalf("config file error: %v", err)
+	}
+	btcUser3Address := config.BtcUser3Address
+	ethUser3PrivKey := config.EthUser3Address
+	user3 := user.NewUser(ethUser3PrivKey, btcUser3Address, config.User3ID)
+
+	btcUser2Address := config.BtcUser2Address
+	ethUser2PrivKey := config.EthUser2Address
+	user2 := user.NewUser(ethUser2PrivKey, btcUser2Address, config.User2ID)
+
+	return user3, user2
+
 }
 
 func TestLimit(t *testing.T) {
@@ -164,11 +185,13 @@ func TestLastMarketTrades(t *testing.T) {
 func TestMakeStopLimitOrder(t *testing.T) {
 	ob := NewOrderbook()
 
+	user3, user2 := createUser()
+
 	price := 40_000.0
-	sellOrder := limit.NewLimitOrder(true, 3, 0)
+	sellOrder := limit.NewLimitOrder(true, 3, user2.ID)
 	ob.PlaceLimitOrder(price, sellOrder)
 
-	buyMarketOrder := limit.NewLimitOrder(false, 3, 1)
+	buyMarketOrder := limit.NewLimitOrder(false, 3, user3.ID)
 	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT_Fiat)
 
 	assert(t, len(matches), 1)
@@ -179,14 +202,14 @@ func TestMakeStopLimitOrder(t *testing.T) {
 	stopBidLimitOrderprice := 38_000.0
 	stopBidLimitOrderstopPrice := 42_000.0
 	bidStopLimitOrder := order.NewStopOrder(true, true, 4.0, stopBidLimitOrderprice, stopBidLimitOrderstopPrice, 2)
-	ob.PlaceStopOrder(bidStopLimitOrder)
+	ob.PlaceStopOrder(bidStopLimitOrder, order.MarketUSDT_Fiat, user2)
 
 	assert(t, len(ob.stopLimitOrders), 1)
 
 	stopAskLimitOrderprice := 39_000.0
 	stopAskLimitOrderstopPrice := 39_000.0
 	askStopLimitOrder := order.NewStopOrder(false, true, 9.0, stopAskLimitOrderprice, stopAskLimitOrderstopPrice, 2)
-	ob.PlaceStopOrder(askStopLimitOrder)
+	ob.PlaceStopOrder(askStopLimitOrder, order.MarketUSDT_Fiat, user3)
 
 	assert(t, len(ob.stopLimitOrders), 2)
 
@@ -195,11 +218,13 @@ func TestMakeStopLimitOrder(t *testing.T) {
 func TestMakeStopMarketOrder(t *testing.T) {
 	ob := NewOrderbook()
 
+	user3, user2 := createUser()
+
 	price := 40_000.0
-	sellOrder := limit.NewLimitOrder(true, 3, 0)
+	sellOrder := limit.NewLimitOrder(true, 3, user2.ID)
 	ob.PlaceLimitOrder(price, sellOrder)
 
-	buyMarketOrder := limit.NewLimitOrder(false, 3, 1)
+	buyMarketOrder := limit.NewLimitOrder(false, 3, user3.ID)
 	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT_Fiat)
 
 	assert(t, len(matches), 1)
@@ -214,7 +239,7 @@ func TestMakeStopMarketOrder(t *testing.T) {
 	askStopMarketOrderPrice := 43_000.0
 	askStopMarketorderStopPrice := 45_000.0
 	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, 3)
-	ob.PlaceStopOrder(askStopMarketOrder)
+	ob.PlaceStopOrder(askStopMarketOrder, order.MarketUSDT_Fiat, user2)
 
 	assert(t, len(ob.stopMarketOrders), 1)
 	assert(t, ob.stopMarketOrders[0].State, order.Pending)
@@ -224,10 +249,12 @@ func TestMakeStopMarketOrder(t *testing.T) {
 func TestCancelStopOrder(t *testing.T) {
 	ob := NewOrderbook()
 
+	_, user2 := createUser()
+
 	askStopMarketOrderPrice := 43_000.0
 	askStopMarketorderStopPrice := 45_000.0
-	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, 3)
-	ob.PlaceStopOrder(askStopMarketOrder)
+	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, user2.ID)
+	ob.PlaceStopOrder(askStopMarketOrder, order.MarketUSDT_Fiat, user2)
 
 	assert(t, len(ob.stopMarketOrders), 1)
 	assert(t, ob.stopMarketOrders[len(ob.stopMarketOrders)-1].State, order.Pending)

@@ -60,9 +60,11 @@ type (
 
 type (
 	Market struct {
-		Base  string
-		Quote string
+		Base  string `json:"base"`
+		Quote string `json:"quote"`
 	}
+
+	MarketString string
 
 	Order struct {
 		UserID    int64
@@ -105,18 +107,18 @@ type (
 	StopOrderState string
 
 	Orders struct {
-		Asks []Order
-		Bids []Order
+		Asks []Order `json:"asks"`
+		Bids []Order `json:"bids"`
 	}
 
 	GeneralStopOrders struct {
-		StopLimitOrders  []StopOrder
-		StopMarketOrders []StopOrder
+		StopLimitOrders  []StopOrder `json:"stopLimitOrders"`
+		StopMarketOrders []StopOrder `json:"stopMarketOrders"`
 	}
 
 	GetOrdersResponse struct {
-		LimitOrders map[Market]Orders
-		StopOrders  map[Market]GeneralStopOrders
+		LimitOrders map[MarketString]Orders            `json:"limitOrders"`
+		StopOrders  map[MarketString]GeneralStopOrders `json:"stopOrders"`
 	}
 
 	PlaceOrderRequest struct {
