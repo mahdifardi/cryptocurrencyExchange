@@ -165,7 +165,7 @@ func (ex *Exchange) HandlePlaceOrder(c echo.Context) error {
 	if placeOrderData.Type == order.MarketOrder {
 		matches, matchedOrders := ex.HandlePlaceMarketOrder(market, newOrder)
 
-		if err := ex.HandleMatches(market, matches); err != nil {
+		if err := ex.HandleMatches(placeOrderData.Bid, market, matches); err != nil {
 			return c.JSON(500, err)
 		}
 

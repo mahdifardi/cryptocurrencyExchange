@@ -540,14 +540,14 @@ func TestGetOrders(t *testing.T) {
 
 	// var pr order.GetOrdersResponse
 	pr := order.GetOrdersResponse{
-		LimitOrders: make(map[order.Market]order.Orders),
-		StopOrders:  make(map[order.Market]order.GeneralStopOrders),
+		LimitOrders: make(map[order.MarketString]order.Orders),
+		StopOrders:  make(map[order.MarketString]order.GeneralStopOrders),
 	}
 	err = json.Unmarshal(rec.Body.Bytes(), &pr)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketETH_Fiat].Bids))
-	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH_Fiat].StopLimitOrders))
-	assert.Equal(t, 1, len(pr.StopOrders[order.MarketETH_Fiat].StopMarketOrders))
+	assert.Equal(t, 1, len(pr.LimitOrders[order.MarketString(order.MarketETH_Fiat.String())].Bids))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketString(order.MarketETH_Fiat.String())].StopLimitOrders))
+	assert.Equal(t, 1, len(pr.StopOrders[order.MarketString(order.MarketETH_Fiat.String())].StopMarketOrders))
 
 }
 
@@ -616,9 +616,12 @@ func TestPlaceStopOrder(t *testing.T) {
 
 	ex := newExchange()
 
+	user := createUser()
+	ex.Users[user.ID] = user
+
 	// stop limit order
 	jsonBody, _ := json.Marshal(order.PlaceStopOrderRequest{
-		UserID:    4,
+		UserID:    user.ID,
 		Bid:       true,
 		Size:      3,
 		Price:     34_000.0,
@@ -637,7 +640,7 @@ func TestPlaceStopOrder(t *testing.T) {
 
 	// stop market order
 	jsonBody, _ = json.Marshal(order.PlaceStopOrderRequest{
-		UserID:    4,
+		UserID:    user.ID,
 		Bid:       true,
 		Size:      3,
 		Price:     34_000.0,
@@ -715,7 +718,7 @@ func TestGetTrades(t *testing.T) {
 
 	// get trades
 
-	jsonBody, _ = json.Marshal(order.MarketBTC_Fiat)
+	jsonBody, _ = json.Marshal(order.MarketETH_Fiat)
 	req = httptest.NewRequest(http.MethodGet, "/trades", bytes.NewBuffer(jsonBody))
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)

@@ -16,7 +16,7 @@ import (
 	"github.com/mahdifardi/cryptocurrencyExchange/order"
 )
 
-func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) error {
+func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit.Match) error {
 
 	for _, match := range matches {
 		seller, ok := ex.Users[match.Ask.UserId]
@@ -39,19 +39,6 @@ func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) er
 
 			buyerAddress := crypto.PubkeyToAddress(buyer.ETHPrivateKey.PublicKey)
 
-			// publicKey := seller.ETHPrivateKey.Public()
-			// publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-			// if !ok {
-			// 	return fmt.Errorf("error casting public key to ECDSA")
-			// }
-
-			// sellerAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-
-			// sellerBalance, err := ex.EthClient.BalanceAt(ctx, sellerAddress, nil)
-			// if err != nil {
-			// 	return err
-			// }
-
 			gasLimit := uint64(21000) // in units
 
 			gasPrice, err := ex.EthClient.SuggestGasPrice(ctx)
@@ -63,48 +50,94 @@ func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) er
 				new(big.Int).Mul(gasPrice,
 					big.NewInt(int64(gasLimit))))
 
-			var sellerBalanceStatus bool = true
-			var buyerFiatBalanceStatus bool = true
+			if bid {
+				var sellerBalanceStatus bool = true
+				var buyerFiatBalanceStatus bool = true
 
-			if seller.AssetBalances[order.AsserETH].ReservedBalance.Cmp(totalCost) < 0 {
-				sellerBalanceStatus = false
-			}
-
-			buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
-
-			if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
-				buyerFiatBalanceStatus = false
-			}
-
-			if sellerBalanceStatus && buyerFiatBalanceStatus {
-				err = transferETH(ex.EthClient, seller.ETHPrivateKey, buyerAddress, amount)
-				if err != nil {
-					return err
+				if seller.AssetBalances[order.AsserETH].ReservedBalance.Cmp(totalCost) < 0 {
+					sellerBalanceStatus = false
 				}
 
-				buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
-				buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
-				buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+				buyerAvailableFiatBalance := buyer.AssetBalances[order.AssetFiat].AvailableBalance
 
-				sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
-				sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
-				seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+				if buyerAvailableFiatBalance.Cmp(fiatAmount) < 0 {
+					buyerFiatBalanceStatus = false
+				}
 
-				buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-				buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-				buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+				if sellerBalanceStatus && buyerFiatBalanceStatus {
+					err = transferETH(ex.EthClient, seller.ETHPrivateKey, buyerAddress, amount)
+					if err != nil {
+						return err
+					}
 
-				sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-				sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-				seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
-			}
-			if !sellerBalanceStatus && !buyerFiatBalanceStatus {
-				return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCost.String(), buyerReservedFiatBalance, totalCost)
-			} else if !sellerBalanceStatus {
-				return fmt.Errorf("insufficient seller ETH balance: have %s, need %s", seller.AssetBalances[order.AsserETH], totalCost.String())
-			} else if !buyerFiatBalanceStatus {
-				return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerReservedFiatBalance, totalCost)
+					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
+					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
 
+					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
+					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+
+					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
+					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
+					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+
+					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
+					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+				}
+				if !sellerBalanceStatus && !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCost.String(), buyerAvailableFiatBalance, totalCost)
+				} else if !sellerBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s", seller.AssetBalances[order.AsserETH], totalCost.String())
+				} else if !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerAvailableFiatBalance, totalCost)
+
+				}
+			} else {
+				var sellerBalanceStatus bool = true
+				var buyerFiatBalanceStatus bool = true
+
+				if seller.AssetBalances[order.AsserETH].AvailableBalance.Cmp(totalCost) < 0 {
+					sellerBalanceStatus = false
+				}
+
+				buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
+
+				if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
+					buyerFiatBalanceStatus = false
+				}
+
+				if sellerBalanceStatus && buyerFiatBalanceStatus {
+					err = transferETH(ex.EthClient, seller.ETHPrivateKey, buyerAddress, amount)
+					if err != nil {
+						return err
+					}
+
+					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
+					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+
+					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
+					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+
+					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
+					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
+					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+
+					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
+					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+				}
+				if !sellerBalanceStatus && !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCost.String(), buyerReservedFiatBalance, totalCost)
+				} else if !sellerBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s", seller.AssetBalances[order.AsserETH], totalCost.String())
+				} else if !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerReservedFiatBalance, totalCost)
+
+				}
 			}
 		//**
 		case order.MarketETH_USDT:
@@ -146,60 +179,119 @@ func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) er
 
 			totalCostUSDT := new(big.Int).Add(amount, new(big.Int).Mul(gasPrice, big.NewInt(int64(gasLimitUSDT))))
 
-			var sellerEthBalanceStatus bool = true
-			var buyerUSDTBalanceStatus bool = true
+			if bid {
+				var sellerEthBalanceStatus bool = true
+				var buyerUSDTBalanceStatus bool = true
 
-			buyerReservedUSDTBalance := buyer.AssetBalances[order.AsserUSDT].ReservedBalance
+				buyerAvailableUSDTBalance := buyer.AssetBalances[order.AsserUSDT].AvailableBalance
 
-			if buyerReservedUSDTBalance.Cmp(totalCostUSDT) < 0 {
-				buyerUSDTBalanceStatus = false
-			}
-
-			gasLimitETH := uint64(21000) // in units
-
-			totalCostETH := new(big.Int).Add(amount,
-				new(big.Int).Mul(gasPrice,
-					big.NewInt(int64(gasLimitETH))))
-
-			sellerReservedETHBalance := seller.AssetBalances[order.AsserETH].ReservedBalance
-			if sellerReservedETHBalance.Cmp(totalCostETH) < 0 {
-				sellerEthBalanceStatus = false
-			}
-
-			if sellerEthBalanceStatus && buyerUSDTBalanceStatus {
-				err = transferETH(ex.EthClient, seller.ETHPrivateKey, buyerAddress, amount)
-				if err != nil {
-					return err
+				if buyerAvailableUSDTBalance.Cmp(totalCostUSDT) < 0 {
+					buyerUSDTBalanceStatus = false
 				}
 
-				err = transferUSDT(ex.EthClient, buyer.ETHPrivateKey, usdtAddress, sellerAddress, usdtAmount)
-				if err != nil {
-					return err
+				gasLimitETH := uint64(21000) // in units
+
+				totalCostETH := new(big.Int).Add(amount,
+					new(big.Int).Mul(gasPrice,
+						big.NewInt(int64(gasLimitETH))))
+
+				sellerReservedETHBalance := seller.AssetBalances[order.AsserETH].ReservedBalance
+				if sellerReservedETHBalance.Cmp(totalCostETH) < 0 {
+					sellerEthBalanceStatus = false
 				}
 
-				buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
-				buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
-				buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+				if sellerEthBalanceStatus && buyerUSDTBalanceStatus {
+					err = transferETH(ex.EthClient, seller.ETHPrivateKey, buyerAddress, amount)
+					if err != nil {
+						return err
+					}
 
-				sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
-				sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
-				seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+					err = transferUSDT(ex.EthClient, buyer.ETHPrivateKey, usdtAddress, sellerAddress, usdtAmount)
+					if err != nil {
+						return err
+					}
 
-				buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-				buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
-				buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
+					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
 
-				sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-				sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
-				seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
-			}
-			if !sellerEthBalanceStatus && !buyerUSDTBalanceStatus {
-				return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostETH.String(), buyerReservedUSDTBalance, totalCostUSDT)
-			} else if !sellerEthBalanceStatus {
-				return fmt.Errorf("insufficient seller ETH balance: have %s, need %s", seller.AssetBalances[order.AsserETH], totalCostETH.String())
-			} else if !buyerUSDTBalanceStatus {
-				return fmt.Errorf("insufficient buyer USDT balance: have %v, need %v", buyerReservedUSDTBalance, totalCostUSDT)
+					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
+					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
 
+					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
+					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
+					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+
+					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
+					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+				}
+				if !sellerEthBalanceStatus && !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostETH.String(), buyerAvailableUSDTBalance, totalCostUSDT)
+				} else if !sellerEthBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s", seller.AssetBalances[order.AsserETH], totalCostETH.String())
+				} else if !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient buyer USDT balance: have %v, need %v", buyerAvailableUSDTBalance, totalCostUSDT)
+
+				}
+			} else {
+
+				var sellerEthBalanceStatus bool = true
+				var buyerUSDTBalanceStatus bool = true
+
+				buyerReservedUSDTBalance := buyer.AssetBalances[order.AsserUSDT].ReservedBalance
+
+				if buyerReservedUSDTBalance.Cmp(totalCostUSDT) < 0 {
+					buyerUSDTBalanceStatus = false
+				}
+
+				gasLimitETH := uint64(21000) // in units
+
+				totalCostETH := new(big.Int).Add(amount,
+					new(big.Int).Mul(gasPrice,
+						big.NewInt(int64(gasLimitETH))))
+
+				sellerAvailableETHBalance := seller.AssetBalances[order.AsserETH].AvailableBalance
+				if sellerAvailableETHBalance.Cmp(totalCostETH) < 0 {
+					sellerEthBalanceStatus = false
+				}
+
+				if sellerEthBalanceStatus && buyerUSDTBalanceStatus {
+					err = transferETH(ex.EthClient, seller.ETHPrivateKey, buyerAddress, amount)
+					if err != nil {
+						return err
+					}
+
+					err = transferUSDT(ex.EthClient, buyer.ETHPrivateKey, usdtAddress, sellerAddress, usdtAmount)
+					if err != nil {
+						return err
+					}
+
+					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
+					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+
+					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
+					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+
+					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
+					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
+					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+
+					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
+					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+				}
+				if !sellerEthBalanceStatus && !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostETH.String(), buyerReservedUSDTBalance, totalCostUSDT)
+				} else if !sellerEthBalanceStatus {
+					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s", seller.AssetBalances[order.AsserETH], totalCostETH.String())
+				} else if !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient buyer USDT balance: have %v, need %v", buyerReservedUSDTBalance, totalCostUSDT)
+
+				}
 			}
 
 		case order.MarketBTC_Fiat:
@@ -211,49 +303,99 @@ func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) er
 			totalCostBTC := new(big.Int).Add(amount,
 				big.NewInt(1000))
 
-			var sellerBTCBalanceStatus bool = true
-			var buyerFiatBalanceStatus bool = true
+			if bid {
 
-			if seller.AssetBalances[order.AsserBTC].ReservedBalance.Cmp(totalCostBTC) < 0 {
-				sellerBTCBalanceStatus = false
-			}
+				var sellerBTCBalanceStatus bool = true
+				var buyerFiatBalanceStatus bool = true
 
-			buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
-
-			if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
-				buyerFiatBalanceStatus = false
-			}
-
-			if sellerBTCBalanceStatus && buyerFiatBalanceStatus {
-
-				err := transferBTC(ex.btcClient, seller.BTCAdress, buyer.BTCAdress, match.SizeFilled)
-				if err != nil {
-					return err
+				if seller.AssetBalances[order.AsserBTC].ReservedBalance.Cmp(totalCostBTC) < 0 {
+					sellerBTCBalanceStatus = false
 				}
 
-				buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
-				buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
-				buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+				buyerAvailableFiatBalance := buyer.AssetBalances[order.AssetFiat].AvailableBalance
 
-				sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
-				sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
-				seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+				if buyerAvailableFiatBalance.Cmp(fiatAmount) < 0 {
+					buyerFiatBalanceStatus = false
+				}
 
-				buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-				buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-				buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+				if sellerBTCBalanceStatus && buyerFiatBalanceStatus {
 
-				sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-				sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-				seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
-			}
-			if !sellerBTCBalanceStatus && !buyerFiatBalanceStatus {
-				return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserBTC], totalCostBTC.String(), buyerReservedFiatBalance, totalCostBTC)
-			} else if !sellerBTCBalanceStatus {
-				return fmt.Errorf("insufficient seller BTC balance: have %s, need %s", seller.AssetBalances[order.AsserBTC], totalCostBTC.String())
-			} else if !buyerFiatBalanceStatus {
-				return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerReservedFiatBalance, totalCostBTC)
+					err := transferBTC(ex.btcClient, seller.BTCAdress, buyer.BTCAdress, match.SizeFilled)
+					if err != nil {
+						return err
+					}
 
+					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
+					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+
+					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
+					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+
+					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
+					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
+					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+
+					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
+					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+				}
+				if !sellerBTCBalanceStatus && !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserBTC], totalCostBTC.String(), buyerAvailableFiatBalance, totalCostBTC)
+				} else if !sellerBTCBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s", seller.AssetBalances[order.AsserBTC], totalCostBTC.String())
+				} else if !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerAvailableFiatBalance, totalCostBTC)
+
+				}
+
+			} else {
+
+				var sellerBTCBalanceStatus bool = true
+				var buyerFiatBalanceStatus bool = true
+
+				if seller.AssetBalances[order.AsserBTC].AvailableBalance.Cmp(totalCostBTC) < 0 {
+					sellerBTCBalanceStatus = false
+				}
+
+				buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
+
+				if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
+					buyerFiatBalanceStatus = false
+				}
+
+				if sellerBTCBalanceStatus && buyerFiatBalanceStatus {
+
+					err := transferBTC(ex.btcClient, seller.BTCAdress, buyer.BTCAdress, match.SizeFilled)
+					if err != nil {
+						return err
+					}
+
+					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
+					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+
+					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
+					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+
+					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
+					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
+					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+
+					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
+					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+				}
+				if !sellerBTCBalanceStatus && !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserBTC], totalCostBTC.String(), buyerReservedFiatBalance, totalCostBTC)
+				} else if !sellerBTCBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s", seller.AssetBalances[order.AsserBTC], totalCostBTC.String())
+				} else if !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerReservedFiatBalance, totalCostBTC)
+
+				}
 			}
 		//**
 		case order.MarketBTC_USDT:
@@ -298,57 +440,116 @@ func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) er
 
 			totalCostUSDT := new(big.Int).Add(amount, new(big.Int).Mul(gasPrice, big.NewInt(int64(gasLimitUSDT))))
 
-			var sellerBTCBalanceStatus bool = true
-			var buyerUSDTBalanceStatus bool = true
+			if bid {
 
-			buyerReservedUSDTBalance := buyer.AssetBalances[order.AsserUSDT].ReservedBalance
+				var sellerBTCBalanceStatus bool = true
+				var buyerUSDTBalanceStatus bool = true
 
-			if buyerReservedUSDTBalance.Cmp(totalCostUSDT) < 0 {
-				buyerUSDTBalanceStatus = false
-			}
+				buyerAvailableUSDTBalance := buyer.AssetBalances[order.AsserUSDT].AvailableBalance
 
-			totalCostBTC := new(big.Int).Add(amount,
-				big.NewInt(1000))
-
-			sellerReservedBTCBalance := seller.AssetBalances[order.AsserBTC].ReservedBalance
-			if sellerReservedBTCBalance.Cmp(totalCostBTC) < 0 {
-				sellerBTCBalanceStatus = false
-			}
-
-			if sellerBTCBalanceStatus && buyerUSDTBalanceStatus {
-
-				err := transferBTC(ex.btcClient, seller.BTCAdress, buyer.BTCAdress, match.SizeFilled)
-				if err != nil {
-					return err
+				if buyerAvailableUSDTBalance.Cmp(totalCostUSDT) < 0 {
+					buyerUSDTBalanceStatus = false
 				}
 
-				err = transferUSDT(ex.EthClient, buyer.ETHPrivateKey, usdtAddress, sellerAddress, usdtAmount)
-				if err != nil {
-					return err
+				totalCostBTC := new(big.Int).Add(amount,
+					big.NewInt(1000))
+
+				sellerReservedBTCBalance := seller.AssetBalances[order.AsserBTC].ReservedBalance
+				if sellerReservedBTCBalance.Cmp(totalCostBTC) < 0 {
+					sellerBTCBalanceStatus = false
 				}
 
-				buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
-				buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
-				buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+				if sellerBTCBalanceStatus && buyerUSDTBalanceStatus {
 
-				sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
-				sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
-				seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+					err := transferBTC(ex.btcClient, seller.BTCAdress, buyer.BTCAdress, match.SizeFilled)
+					if err != nil {
+						return err
+					}
 
-				buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-				buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
-				buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					err = transferUSDT(ex.EthClient, buyer.ETHPrivateKey, usdtAddress, sellerAddress, usdtAmount)
+					if err != nil {
+						return err
+					}
 
-				sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-				sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
-				seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
-			}
-			if !sellerBTCBalanceStatus && !buyerUSDTBalanceStatus {
-				return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostBTC.String(), buyerReservedUSDTBalance, totalCostUSDT)
-			} else if !sellerBTCBalanceStatus {
-				return fmt.Errorf("insufficient seller BTC balance: have %s, need %s", seller.AssetBalances[order.AsserBTC], totalCostBTC.String())
-			} else if !buyerUSDTBalanceStatus {
-				return fmt.Errorf("insufficient buyer USDT balance: have %v, need %v", buyerReservedUSDTBalance, totalCostUSDT)
+					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
+					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+
+					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
+					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+
+					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
+					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
+					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+
+					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
+					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+				}
+				if !sellerBTCBalanceStatus && !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostBTC.String(), buyerAvailableUSDTBalance, totalCostUSDT)
+				} else if !sellerBTCBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s", seller.AssetBalances[order.AsserBTC], totalCostBTC.String())
+				} else if !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient buyer USDT balance: have %v, need %v", buyerAvailableUSDTBalance, totalCostUSDT)
+
+				}
+			} else {
+
+				var sellerBTCBalanceStatus bool = true
+				var buyerUSDTBalanceStatus bool = true
+
+				buyerReservedUSDTBalance := buyer.AssetBalances[order.AsserUSDT].ReservedBalance
+
+				if buyerReservedUSDTBalance.Cmp(totalCostUSDT) < 0 {
+					buyerUSDTBalanceStatus = false
+				}
+
+				totalCostBTC := new(big.Int).Add(amount,
+					big.NewInt(1000))
+
+				sellerAvailableBTCBalance := seller.AssetBalances[order.AsserBTC].AvailableBalance
+				if sellerAvailableBTCBalance.Cmp(totalCostBTC) < 0 {
+					sellerBTCBalanceStatus = false
+				}
+
+				if sellerBTCBalanceStatus && buyerUSDTBalanceStatus {
+
+					err := transferBTC(ex.btcClient, seller.BTCAdress, buyer.BTCAdress, match.SizeFilled)
+					if err != nil {
+						return err
+					}
+
+					err = transferUSDT(ex.EthClient, buyer.ETHPrivateKey, usdtAddress, sellerAddress, usdtAmount)
+					if err != nil {
+						return err
+					}
+
+					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
+					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+
+					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
+					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+
+					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
+					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
+					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+
+					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
+					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+				}
+				if !sellerBTCBalanceStatus && !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostBTC.String(), buyerReservedUSDTBalance, totalCostUSDT)
+				} else if !sellerBTCBalanceStatus {
+					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s", seller.AssetBalances[order.AsserBTC], totalCostBTC.String())
+				} else if !buyerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient buyer USDT balance: have %v, need %v", buyerReservedUSDTBalance, totalCostUSDT)
+
+				}
 
 			}
 
@@ -390,51 +591,100 @@ func (ex *Exchange) HandleMatches(market order.Market, matches []limit.Match) er
 
 			totalCostUSDT := new(big.Int).Add(amount, new(big.Int).Mul(gasPrice, big.NewInt(int64(gasLimitUSDT))))
 
-			var sellerUSDTBalanceStatus bool = true
-			var buyerFiatBalanceStatus bool = true
+			if bid {
 
-			if seller.AssetBalances[order.AsserUSDT].ReservedBalance.Cmp(totalCostUSDT) < 0 {
-				sellerUSDTBalanceStatus = false
-			}
+				var sellerUSDTBalanceStatus bool = true
+				var buyerFiatBalanceStatus bool = true
 
-			buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
-
-			if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
-				buyerFiatBalanceStatus = false
-			}
-
-			if sellerUSDTBalanceStatus && buyerFiatBalanceStatus {
-
-				err = transferUSDT(ex.EthClient, seller.ETHPrivateKey, usdtAddress, buyerAddress, amount)
-				if err != nil {
-					return err
+				if seller.AssetBalances[order.AsserUSDT].ReservedBalance.Cmp(totalCostUSDT) < 0 {
+					sellerUSDTBalanceStatus = false
 				}
 
-				buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-				buyerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(buyerUSDTAssetBalance.AvailableBalance, amount)
-				buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+				buyerAvailableFiatBalance := buyer.AssetBalances[order.AssetFiat].AvailableBalance
 
-				sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-				sellerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(sellerUSDTAssetBalance.ReservedBalance, amount)
-				seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+				if buyerAvailableFiatBalance.Cmp(fiatAmount) < 0 {
+					buyerFiatBalanceStatus = false
+				}
 
-				buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-				buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-				buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+				if sellerUSDTBalanceStatus && buyerFiatBalanceStatus {
 
-				sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-				sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-				seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+					err = transferUSDT(ex.EthClient, seller.ETHPrivateKey, usdtAddress, buyerAddress, amount)
+					if err != nil {
+						return err
+					}
+
+					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
+					buyerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(buyerUSDTAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+
+					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
+					sellerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(sellerUSDTAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+
+					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
+					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
+					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+
+					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
+					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+				}
+				if !sellerUSDTBalanceStatus && !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient seller USDT balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String(), buyerAvailableFiatBalance, fiatAmount)
+				} else if !sellerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient seller USDT balance: have %s, need %s", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String())
+				} else if !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerAvailableFiatBalance, fiatAmount)
+
+				}
+			} else {
+
+				var sellerUSDTBalanceStatus bool = true
+				var buyerFiatBalanceStatus bool = true
+
+				if seller.AssetBalances[order.AsserUSDT].AvailableBalance.Cmp(totalCostUSDT) < 0 {
+					sellerUSDTBalanceStatus = false
+				}
+
+				buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
+
+				if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
+					buyerFiatBalanceStatus = false
+				}
+
+				if sellerUSDTBalanceStatus && buyerFiatBalanceStatus {
+
+					err = transferUSDT(ex.EthClient, seller.ETHPrivateKey, usdtAddress, buyerAddress, amount)
+					if err != nil {
+						return err
+					}
+
+					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
+					buyerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(buyerUSDTAssetBalance.AvailableBalance, amount)
+					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+
+					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
+					sellerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(sellerUSDTAssetBalance.ReservedBalance, amount)
+					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+
+					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
+					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
+					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+
+					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
+					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
+					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+				}
+				if !sellerUSDTBalanceStatus && !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient seller USDT balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String(), buyerReservedFiatBalance, fiatAmount)
+				} else if !sellerUSDTBalanceStatus {
+					return fmt.Errorf("insufficient seller USDT balance: have %s, need %s", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String())
+				} else if !buyerFiatBalanceStatus {
+					return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerReservedFiatBalance, fiatAmount)
+
+				}
+
 			}
-			if !sellerUSDTBalanceStatus && !buyerFiatBalanceStatus {
-				return fmt.Errorf("insufficient seller USDT balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String(), buyerReservedFiatBalance, fiatAmount)
-			} else if !sellerUSDTBalanceStatus {
-				return fmt.Errorf("insufficient seller USDT balance: have %s, need %s", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String())
-			} else if !buyerFiatBalanceStatus {
-				return fmt.Errorf("insufficient buyer Fiat balance: have %v, need %v", buyerReservedFiatBalance, fiatAmount)
-
-			}
-
 		}
 
 		// if market == order.MarketETH {
