@@ -33,8 +33,9 @@ type PlaceOrderParams struct {
 }
 
 func (c *Client) GetTrades(market order.Market) ([]*orderbook.Trade, error) {
-	e := fmt.Sprintf("%s/trades/%s", Endpoint, market)
-	req, err := http.NewRequest(http.MethodGet, e, nil)
+	e := fmt.Sprintf("%s/trades", Endpoint)
+	jsonBody, _ := json.Marshal(market)
+	req, err := http.NewRequest(http.MethodGet, e, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, err
 	}
@@ -123,9 +124,10 @@ func (c *Client) PlaceMarketOrder(p *PlaceOrderParams) (*order.PlaceOrderRespons
 
 func (c *Client) GetBestBid(market order.Market) (float64, error) {
 	bestPrice := 0.0
-	e := fmt.Sprintf("%s/book/%s/bid", Endpoint, market)
+	e := fmt.Sprintf("%s/book/bid", Endpoint)
+	jsonBody, _ := json.Marshal(market)
 
-	req, err := http.NewRequest(http.MethodGet, e, nil)
+	req, err := http.NewRequest(http.MethodGet, e, bytes.NewBuffer(jsonBody))
 
 	if err != nil {
 		return bestPrice, err
@@ -149,9 +151,10 @@ func (c *Client) GetBestBid(market order.Market) (float64, error) {
 
 func (c *Client) GetBestAsk(market order.Market) (float64, error) {
 	bestPrice := 0.0
-	e := fmt.Sprintf("%s/book/%s/ask", Endpoint, market)
+	e := fmt.Sprintf("%s/book/ask", Endpoint)
+	jsonBody, _ := json.Marshal(market)
 
-	req, err := http.NewRequest(http.MethodGet, e, nil)
+	req, err := http.NewRequest(http.MethodGet, e, bytes.NewBuffer(jsonBody))
 
 	if err != nil {
 		return bestPrice, err
