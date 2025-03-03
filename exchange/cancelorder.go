@@ -165,7 +165,24 @@ func (ex *Exchange) CancelStopMarketOrder(c echo.Context) error {
 
 	for _, stopMarketOrder := range ob.StopMarkets() {
 		if stopMarketOrder.ID == int64(id) && stopMarketOrder.State != order.Canceled {
+			user, ok := ex.Users[stopMarketOrder.UserID]
+			if !ok {
+				return c.JSON(http.StatusBadRequest, CancelOrderResponse{
+					Msg: "user of stopMarketOrder not found",
+				})
+			}
 			ob.CancelStopOrder(stopMarketOrder)
+			if stopMarketOrder.Bid {
+				quoteAmount := new(big.Int).Mul(big.NewInt(int64(stopMarketOrder.Price)), big.NewInt(int64(stopMarketOrder.Size)))
+				userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+				userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
+				userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
+			} else {
+				baseAmount := big.NewInt(int64(stopMarketOrder.Size))
+				userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+				userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
+				userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
+			}
 			return c.JSON(http.StatusOK, CancelOrderResponse{
 				Msg: "stop market order canceled",
 			})

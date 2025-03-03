@@ -27,7 +27,7 @@ func NewUser(ethPrivateKey string, btcAdress string, userId int64) *User {
 
 	assetBalances := make(map[order.Asset]AssetBalance)
 	assetBalances[order.AssetFiat] = AssetBalance{
-		AvailableBalance: big.NewInt(1_000_000),
+		AvailableBalance: big.NewInt(1_000_000_000_000),
 		ReservedBalance:  big.NewInt(0),
 	}
 
