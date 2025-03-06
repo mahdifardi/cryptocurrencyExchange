@@ -116,7 +116,7 @@ func (ex *Exchange) HandlePlaceStopOrder(c echo.Context) error {
 	}
 
 	market := placeStopOrderData.Market
-	newOrder := order.NewStopOrder(placeStopOrderData.Bid, placeStopOrderData.Limit, placeStopOrderData.Size, placeStopOrderData.Price, placeStopOrderData.StopPrice, placeStopOrderData.UserID)
+	newOrder := order.NewStopOrder(placeStopOrderData.Bid, placeStopOrderData.Limit, placeStopOrderData.Size, placeStopOrderData.Price, placeStopOrderData.StopPrice, placeStopOrderData.UserID, placeStopOrderData.Market)
 
 	ob := ex.Orderbook[market]
 

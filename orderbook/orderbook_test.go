@@ -191,8 +191,10 @@ func TestMakeStopLimitOrder(t *testing.T) {
 	sellOrder := limit.NewLimitOrder(true, 3, user2.ID)
 	ob.PlaceLimitOrder(price, sellOrder)
 
+	market := order.MarketUSDT_Fiat
+
 	buyMarketOrder := limit.NewLimitOrder(false, 3, user3.ID)
-	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT_Fiat)
+	matches := ob.PlaceMarketOrder(buyMarketOrder, market)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.Trades), 1)
@@ -201,15 +203,15 @@ func TestMakeStopLimitOrder(t *testing.T) {
 
 	stopBidLimitOrderprice := 38_000.0
 	stopBidLimitOrderstopPrice := 42_000.0
-	bidStopLimitOrder := order.NewStopOrder(true, true, 4.0, stopBidLimitOrderprice, stopBidLimitOrderstopPrice, 2)
-	ob.PlaceStopOrder(bidStopLimitOrder, order.MarketUSDT_Fiat, user2)
+	bidStopLimitOrder := order.NewStopOrder(true, true, 4.0, stopBidLimitOrderprice, stopBidLimitOrderstopPrice, 2, market)
+	ob.PlaceStopOrder(bidStopLimitOrder, market, user2)
 
 	assert(t, len(ob.stopLimitOrders), 1)
 
 	stopAskLimitOrderprice := 39_000.0
 	stopAskLimitOrderstopPrice := 39_000.0
-	askStopLimitOrder := order.NewStopOrder(false, true, 9.0, stopAskLimitOrderprice, stopAskLimitOrderstopPrice, 2)
-	ob.PlaceStopOrder(askStopLimitOrder, order.MarketUSDT_Fiat, user3)
+	askStopLimitOrder := order.NewStopOrder(false, true, 9.0, stopAskLimitOrderprice, stopAskLimitOrderstopPrice, 2, market)
+	ob.PlaceStopOrder(askStopLimitOrder, market, user3)
 
 	assert(t, len(ob.stopLimitOrders), 2)
 
@@ -224,8 +226,10 @@ func TestMakeStopMarketOrder(t *testing.T) {
 	sellOrder := limit.NewLimitOrder(true, 3, user2.ID)
 	ob.PlaceLimitOrder(price, sellOrder)
 
+	market := order.MarketUSDT_Fiat
+
 	buyMarketOrder := limit.NewLimitOrder(false, 3, user3.ID)
-	matches := ob.PlaceMarketOrder(buyMarketOrder, order.MarketUSDT_Fiat)
+	matches := ob.PlaceMarketOrder(buyMarketOrder, market)
 
 	assert(t, len(matches), 1)
 	assert(t, len(ob.Trades), 1)
@@ -238,8 +242,8 @@ func TestMakeStopMarketOrder(t *testing.T) {
 
 	askStopMarketOrderPrice := 43_000.0
 	askStopMarketorderStopPrice := 45_000.0
-	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, 3)
-	ob.PlaceStopOrder(askStopMarketOrder, order.MarketUSDT_Fiat, user2)
+	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, 3, market)
+	ob.PlaceStopOrder(askStopMarketOrder, market, user2)
 
 	assert(t, len(ob.stopMarketOrders), 1)
 	assert(t, ob.stopMarketOrders[0].State, order.Pending)
@@ -251,10 +255,11 @@ func TestCancelStopOrder(t *testing.T) {
 
 	_, user2 := createUser()
 
+	market := order.MarketUSDT_Fiat
 	askStopMarketOrderPrice := 43_000.0
 	askStopMarketorderStopPrice := 45_000.0
-	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, user2.ID)
-	ob.PlaceStopOrder(askStopMarketOrder, order.MarketUSDT_Fiat, user2)
+	askStopMarketOrder := order.NewStopOrder(false, false, 5, askStopMarketOrderPrice, askStopMarketorderStopPrice, user2.ID, market)
+	ob.PlaceStopOrder(askStopMarketOrder, market, user2)
 
 	assert(t, len(ob.stopMarketOrders), 1)
 	assert(t, ob.stopMarketOrders[len(ob.stopMarketOrders)-1].State, order.Pending)

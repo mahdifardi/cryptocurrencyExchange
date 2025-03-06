@@ -28,7 +28,7 @@ func marketOrderPlacer(config config.Config, c *client.Client, market order.Mark
 		newmarketSellOrder := &client.PlaceOrderParams{
 			UserId: config.User1ID,
 			Bid:    false,
-			Size:   1000.0,
+			Size:   10.0,
 			Market: market,
 		}
 
@@ -40,7 +40,7 @@ func marketOrderPlacer(config config.Config, c *client.Client, market order.Mark
 		marketSellOrder := &client.PlaceOrderParams{
 			UserId: config.User3ID,
 			Bid:    false,
-			Size:   100.0,
+			Size:   10.0,
 			Market: market,
 		}
 
@@ -105,7 +105,7 @@ func makeMarketSimple(config config.Config, c *client.Client, market order.Marke
 				UserId: config.User2ID,
 				Bid:    true,
 				Price:  bestBidPrice + 100,
-				Size:   1_000.0,
+				Size:   100.0,
 				Market: market,
 			}
 
@@ -125,7 +125,7 @@ func makeMarketSimple(config config.Config, c *client.Client, market order.Marke
 				UserId: config.User2ID,
 				Bid:    false,
 				Price:  bestAskPrice - 100,
-				Size:   1_000.0,
+				Size:   100.0,
 				Market: market,
 			}
 
@@ -211,7 +211,7 @@ func main() {
 	go makeMarketSimple(config, c, order.MarketBTC_USDT)
 	go makeMarketSimple(config, c, order.MarketUSDT_Fiat)
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	go marketOrderPlacer(config, c, order.MarketETH_Fiat)
 	go marketOrderPlacer(config, c, order.MarketETH_USDT)

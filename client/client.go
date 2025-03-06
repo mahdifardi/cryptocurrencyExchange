@@ -208,7 +208,7 @@ func (c *Client) PlaceLimitOrder(p *PlaceOrderParams) (*order.PlaceOrderResponse
 	}
 
 	e := Endpoint + "/order"
-	req, err := http.NewRequest(http.MethodPost, e, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, e, bytes.NewBuffer(body))
 
 	if err != nil {
 		return nil, err

@@ -100,6 +100,7 @@ type (
 		StopPrice float64
 		Price     float64
 		State     StopOrderState
+		Market    Market
 	}
 
 	StopOrders []*StopOrder
@@ -164,7 +165,7 @@ func (so StopOrders) Len() int           { return len(so) }
 func (so StopOrders) Swap(i, j int)      { so[i], so[j] = so[j], so[i] }
 func (so StopOrders) Less(i, j int) bool { return so[i].StopPrice < so[j].StopPrice }
 
-func NewStopOrder(bid, limit bool, size, price, stopPrice float64, userID int64) *StopOrder {
+func NewStopOrder(bid, limit bool, size, price, stopPrice float64, userID int64, market Market) *StopOrder {
 	return &StopOrder{
 		ID:        int64(rand.Intn(1000000)),
 		UserID:    userID,
@@ -175,5 +176,6 @@ func NewStopOrder(bid, limit bool, size, price, stopPrice float64, userID int64)
 		StopPrice: stopPrice,
 		Price:     price,
 		State:     Pending,
+		Market:    market,
 	}
 }
