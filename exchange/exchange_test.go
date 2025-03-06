@@ -246,7 +246,7 @@ func TestCancelStopLimitOrder(t *testing.T) {
 	stopLimitOrderStopPrice := 39_000.0
 	stopLimitOrderSize := 5
 	// stopLimitOrderUserId := 4
-	stopLimitOrder := order.NewStopOrder(false, true, float64(stopLimitOrderSize), stopLimitOrderPrice, stopLimitOrderStopPrice, user.ID)
+	stopLimitOrder := order.NewStopOrder(false, true, float64(stopLimitOrderSize), stopLimitOrderPrice, stopLimitOrderStopPrice, user.ID, market)
 
 	ob.PlaceStopOrder(stopLimitOrder, market, user)
 
@@ -330,7 +330,7 @@ func TestCancelStopMarketOrder(t *testing.T) {
 	stopMarketOrderStopPrice := 39_000.0
 	stopMarketOrderSize := 5
 	// stopMarketOrderUserId := 4
-	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, user.ID)
+	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, user.ID, market)
 
 	ob.PlaceStopOrder(stopMarketOrder, market, user)
 
@@ -414,7 +414,7 @@ func TestGetBook(t *testing.T) {
 	stopMarketOrderStopPrice := 39_000.0
 	stopMarketOrderSize := 5
 	stopMarketOrderUserId := 4
-	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId))
+	stopMarketOrder := order.NewStopOrder(false, false, float64(stopMarketOrderSize), stopMarketOrderPrice, stopMarketOrderStopPrice, int64(stopMarketOrderUserId), market)
 
 	ob.PlaceStopOrder(stopMarketOrder, market, user)
 

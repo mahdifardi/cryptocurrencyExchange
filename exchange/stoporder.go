@@ -83,7 +83,8 @@ func (ex *Exchange) ProcessStopMarketOrders(market order.Market) {
 
 			if shouldTrigger {
 				marketOrder := limit.NewLimitOrder(stopMarketOrder.Bid, stopMarketOrder.Size, stopMarketOrder.UserID)
-				ob.PlaceMarketOrder(marketOrder, market)
+				ex.HandlePlaceMarketOrder(stopMarketOrder.Market, marketOrder)
+				// ob.PlaceMarketOrder(marketOrder, market)
 				stopMarketOrder.State = order.Triggered
 
 				for _, stOrder := range ex.StopOrders[market][stopMarketOrder.UserID] {
