@@ -54,11 +54,12 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerBalanceStatus bool = true
 				var buyerFiatBalanceStatus bool = true
 
-				if seller.AssetBalances[order.AsserETH].ReservedBalance.Cmp(totalCost) < 0 {
+				sellerReservedBalabce := seller.GetReservedBalance(order.AsserETH)
+				if sellerReservedBalabce.Cmp(totalCost) < 0 {
 					sellerBalanceStatus = false
 				}
 
-				buyerAvailableFiatBalance := buyer.AssetBalances[order.AssetFiat].AvailableBalance
+				buyerAvailableFiatBalance := buyer.GetAvailableBalance(order.AssetFiat)
 
 				if buyerAvailableFiatBalance.Cmp(fiatAmount) < 0 {
 					buyerFiatBalanceStatus = false
@@ -70,21 +71,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
-					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+					buyer.AddAvailableBalance(order.AsserETH, amount)
 
-					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
-					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+					seller.SubReservedBalance(order.AsserETH, amount)
 
-					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+					buyer.SubReservedBalance(order.AssetFiat, fiatAmount)
 
-					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+					seller.AddAvailableBalance(order.AssetFiat, fiatAmount)
 				}
 				if !sellerBalanceStatus && !buyerFiatBalanceStatus {
 					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCost.String(), buyerAvailableFiatBalance, totalCost)
@@ -102,7 +95,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 					sellerBalanceStatus = false
 				}
 
-				buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
+				buyerReservedFiatBalance := buyer.GetReservedBalance(order.AssetFiat)
 
 				if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
 					buyerFiatBalanceStatus = false
@@ -114,21 +107,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
-					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+					buyer.AddAvailableBalance(order.AsserETH, amount)
 
-					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
-					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+					seller.SubReservedBalance(order.AsserETH, amount)
 
-					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+					buyer.SubReservedBalance(order.AssetFiat, fiatAmount)
 
-					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+					seller.AddAvailableBalance(order.AssetFiat, fiatAmount)
 				}
 				if !sellerBalanceStatus && !buyerFiatBalanceStatus {
 					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCost.String(), buyerReservedFiatBalance, totalCost)
@@ -183,7 +168,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerEthBalanceStatus bool = true
 				var buyerUSDTBalanceStatus bool = true
 
-				buyerAvailableUSDTBalance := buyer.AssetBalances[order.AsserUSDT].AvailableBalance
+				buyerAvailableUSDTBalance := buyer.GetAvailableBalance(order.AsserUSDT)
 
 				if buyerAvailableUSDTBalance.Cmp(totalCostUSDT) < 0 {
 					buyerUSDTBalanceStatus = false
@@ -195,7 +180,8 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 					new(big.Int).Mul(gasPrice,
 						big.NewInt(int64(gasLimitETH))))
 
-				sellerReservedETHBalance := seller.AssetBalances[order.AsserETH].ReservedBalance
+				sellerReservedETHBalance := seller.GetReservedBalance(order.AsserETH)
+
 				if sellerReservedETHBalance.Cmp(totalCostETH) < 0 {
 					sellerEthBalanceStatus = false
 				}
@@ -211,21 +197,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
-					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+					buyer.AddAvailableBalance(order.AsserETH, amount)
 
-					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
-					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+					seller.SubReservedBalance(order.AsserETH, amount)
 
-					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
-					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					buyer.SubReservedBalance(order.AsserUSDT, usdtAmount)
 
-					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+					seller.AddAvailableBalance(order.AsserUSDT, usdtAmount)
 				}
 				if !sellerEthBalanceStatus && !buyerUSDTBalanceStatus {
 					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostETH.String(), buyerAvailableUSDTBalance, totalCostUSDT)
@@ -240,7 +218,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerEthBalanceStatus bool = true
 				var buyerUSDTBalanceStatus bool = true
 
-				buyerReservedUSDTBalance := buyer.AssetBalances[order.AsserUSDT].ReservedBalance
+				buyerReservedUSDTBalance := buyer.GetReservedBalance(order.AsserUSDT)
 
 				if buyerReservedUSDTBalance.Cmp(totalCostUSDT) < 0 {
 					buyerUSDTBalanceStatus = false
@@ -252,7 +230,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 					new(big.Int).Mul(gasPrice,
 						big.NewInt(int64(gasLimitETH))))
 
-				sellerAvailableETHBalance := seller.AssetBalances[order.AsserETH].AvailableBalance
+				sellerAvailableETHBalance := seller.GetAvailableBalance(order.AsserETH)
 				if sellerAvailableETHBalance.Cmp(totalCostETH) < 0 {
 					sellerEthBalanceStatus = false
 				}
@@ -268,21 +246,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerETHAssetBalance := buyer.AssetBalances[order.AsserETH]
-					buyerETHAssetBalance.AvailableBalance = new(big.Int).Add(buyerETHAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserETH] = buyerETHAssetBalance
+					buyer.AddAvailableBalance(order.AsserETH, amount)
 
-					sellerETHAssetBalance := seller.AssetBalances[order.AsserETH]
-					sellerETHAssetBalance.ReservedBalance = new(big.Int).Sub(sellerETHAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserETH] = sellerETHAssetBalance
+					seller.SubReservedBalance(order.AsserETH, amount)
 
-					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
-					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					buyer.SubReservedBalance(order.AsserUSDT, usdtAmount)
 
-					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+					seller.AddAvailableBalance(order.AsserUSDT, usdtAmount)
 				}
 				if !sellerEthBalanceStatus && !buyerUSDTBalanceStatus {
 					return fmt.Errorf("insufficient seller ETH balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostETH.String(), buyerReservedUSDTBalance, totalCostUSDT)
@@ -308,12 +278,12 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerBTCBalanceStatus bool = true
 				var buyerFiatBalanceStatus bool = true
 
-				if seller.AssetBalances[order.AsserBTC].ReservedBalance.Cmp(totalCostBTC) < 0 {
+				sellerReservedBalance := seller.GetReservedBalance(order.AsserBTC)
+				if sellerReservedBalance.Cmp(totalCostBTC) < 0 {
 					sellerBTCBalanceStatus = false
 				}
 
-				buyerAvailableFiatBalance := buyer.AssetBalances[order.AssetFiat].AvailableBalance
-
+				buyerAvailableFiatBalance := buyer.GetAvailableBalance(order.AssetFiat)
 				if buyerAvailableFiatBalance.Cmp(fiatAmount) < 0 {
 					buyerFiatBalanceStatus = false
 				}
@@ -325,21 +295,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
-					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+					buyer.AddAvailableBalance(order.AsserBTC, amount)
 
-					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
-					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+					seller.SubReservedBalance(order.AsserBTC, amount)
 
-					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+					buyer.SubReservedBalance(order.AssetFiat, fiatAmount)
 
-					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+					seller.AddAvailableBalance(order.AssetFiat, fiatAmount)
 				}
 				if !sellerBTCBalanceStatus && !buyerFiatBalanceStatus {
 					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserBTC], totalCostBTC.String(), buyerAvailableFiatBalance, totalCostBTC)
@@ -355,11 +317,12 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerBTCBalanceStatus bool = true
 				var buyerFiatBalanceStatus bool = true
 
-				if seller.AssetBalances[order.AsserBTC].AvailableBalance.Cmp(totalCostBTC) < 0 {
+				sellerAvailableBalance := seller.GetAvailableBalance(order.AsserBTC)
+				if sellerAvailableBalance.Cmp(totalCostBTC) < 0 {
 					sellerBTCBalanceStatus = false
 				}
 
-				buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
+				buyerReservedFiatBalance := buyer.GetReservedBalance(order.AssetFiat)
 
 				if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
 					buyerFiatBalanceStatus = false
@@ -372,21 +335,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
-					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+					buyer.AddAvailableBalance(order.AsserBTC, amount)
 
-					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
-					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+					seller.SubReservedBalance(order.AsserBTC, amount)
 
-					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+					buyer.SubReservedBalance(order.AssetFiat, fiatAmount)
 
-					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+					seller.AddAvailableBalance(order.AssetFiat, fiatAmount)
 				}
 				if !sellerBTCBalanceStatus && !buyerFiatBalanceStatus {
 					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserBTC], totalCostBTC.String(), buyerReservedFiatBalance, totalCostBTC)
@@ -400,15 +355,10 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 		//**
 		case order.MarketBTC_USDT:
 
-			// buyer quote asset (USDT) transferred to seller
-			// seller base asset (BTC) transferred to buyer
-
 			buyerAddress := crypto.PubkeyToAddress(buyer.ETHPrivateKey.PublicKey)
 			sellerAddress := crypto.PubkeyToAddress(seller.ETHPrivateKey.PublicKey)
 
 			amount := big.NewInt(int64(btcutil.Amount(match.SizeFilled * 1e8)))
-
-			// amount := big.NewInt(int64(match.SizeFilled))
 
 			// ----
 			usdtAmount := new(big.Int).Mul(big.NewInt(int64(match.Price)), big.NewInt(int64(match.SizeFilled)))
@@ -445,7 +395,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerBTCBalanceStatus bool = true
 				var buyerUSDTBalanceStatus bool = true
 
-				buyerAvailableUSDTBalance := buyer.AssetBalances[order.AsserUSDT].AvailableBalance
+				buyerAvailableUSDTBalance := buyer.GetAvailableBalance(order.AsserUSDT)
 
 				if buyerAvailableUSDTBalance.Cmp(totalCostUSDT) < 0 {
 					buyerUSDTBalanceStatus = false
@@ -454,7 +404,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				totalCostBTC := new(big.Int).Add(amount,
 					big.NewInt(1000))
 
-				sellerReservedBTCBalance := seller.AssetBalances[order.AsserBTC].ReservedBalance
+				sellerReservedBTCBalance := seller.GetReservedBalance(order.AsserBTC)
 				if sellerReservedBTCBalance.Cmp(totalCostBTC) < 0 {
 					sellerBTCBalanceStatus = false
 				}
@@ -471,21 +421,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
-					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+					buyer.AddAvailableBalance(order.AsserBTC, amount)
 
-					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
-					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+					seller.SubReservedBalance(order.AsserBTC, amount)
 
-					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
-					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					buyer.SubReservedBalance(order.AsserUSDT, usdtAmount)
 
-					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+					seller.AddAvailableBalance(order.AsserUSDT, usdtAmount)
 				}
 				if !sellerBTCBalanceStatus && !buyerUSDTBalanceStatus {
 					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostBTC.String(), buyerAvailableUSDTBalance, totalCostUSDT)
@@ -500,7 +442,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerBTCBalanceStatus bool = true
 				var buyerUSDTBalanceStatus bool = true
 
-				buyerReservedUSDTBalance := buyer.AssetBalances[order.AsserUSDT].ReservedBalance
+				buyerReservedUSDTBalance := buyer.GetReservedBalance(order.AsserUSDT)
 
 				if buyerReservedUSDTBalance.Cmp(totalCostUSDT) < 0 {
 					buyerUSDTBalanceStatus = false
@@ -509,7 +451,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				totalCostBTC := new(big.Int).Add(amount,
 					big.NewInt(1000))
 
-				sellerAvailableBTCBalance := seller.AssetBalances[order.AsserBTC].AvailableBalance
+				sellerAvailableBTCBalance := seller.GetAvailableBalance(order.AsserBTC)
 				if sellerAvailableBTCBalance.Cmp(totalCostBTC) < 0 {
 					sellerBTCBalanceStatus = false
 				}
@@ -526,21 +468,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerBTCAssetBalance := buyer.AssetBalances[order.AsserBTC]
-					buyerBTCAssetBalance.AvailableBalance = new(big.Int).Add(buyerBTCAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserBTC] = buyerBTCAssetBalance
+					buyer.AddAvailableBalance(order.AsserBTC, amount)
 
-					sellerBTCAssetBalance := seller.AssetBalances[order.AsserBTC]
-					sellerBTCAssetBalance.ReservedBalance = new(big.Int).Sub(sellerBTCAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserBTC] = sellerBTCAssetBalance
+					seller.SubReservedBalance(order.AsserBTC, amount)
 
-					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-					buyerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(buyerUSDTAssetBalance.ReservedBalance, usdtAmount)
-					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					buyer.SubReservedBalance(order.AsserUSDT, usdtAmount)
 
-					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-					sellerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(usdtAmount, sellerUSDTAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+					seller.AddAvailableBalance(order.AsserUSDT, usdtAmount)
 				}
 				if !sellerBTCBalanceStatus && !buyerUSDTBalanceStatus {
 					return fmt.Errorf("insufficient seller BTC balance: have %s, need %s \n insufficient buyer USDT balance: have %v, need %v", seller.AssetBalances[order.AsserETH], totalCostBTC.String(), buyerReservedUSDTBalance, totalCostUSDT)
@@ -600,7 +534,7 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 					sellerUSDTBalanceStatus = false
 				}
 
-				buyerAvailableFiatBalance := buyer.AssetBalances[order.AssetFiat].AvailableBalance
+				buyerAvailableFiatBalance := buyer.GetAvailableBalance(order.AssetFiat)
 
 				if buyerAvailableFiatBalance.Cmp(fiatAmount) < 0 {
 					buyerFiatBalanceStatus = false
@@ -613,21 +547,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-					buyerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(buyerUSDTAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					buyer.AddAvailableBalance(order.AsserUSDT, amount)
 
-					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-					sellerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(sellerUSDTAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+					seller.SubReservedBalance(order.AsserUSDT, amount)
 
-					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+					buyer.SubReservedBalance(order.AssetFiat, fiatAmount)
 
-					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+					seller.AddAvailableBalance(order.AssetFiat, fiatAmount)
 				}
 				if !sellerUSDTBalanceStatus && !buyerFiatBalanceStatus {
 					return fmt.Errorf("insufficient seller USDT balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String(), buyerAvailableFiatBalance, fiatAmount)
@@ -642,12 +568,12 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 				var sellerUSDTBalanceStatus bool = true
 				var buyerFiatBalanceStatus bool = true
 
-				if seller.AssetBalances[order.AsserUSDT].AvailableBalance.Cmp(totalCostUSDT) < 0 {
+				sellerAvailableBalance := seller.GetAvailableBalance(order.AsserUSDT)
+				if sellerAvailableBalance.Cmp(totalCostUSDT) < 0 {
 					sellerUSDTBalanceStatus = false
 				}
 
-				buyerReservedFiatBalance := buyer.AssetBalances[order.AssetFiat].ReservedBalance
-
+				buyerReservedFiatBalance := buyer.GetReservedBalance(order.AssetFiat)
 				if buyerReservedFiatBalance.Cmp(fiatAmount) < 0 {
 					buyerFiatBalanceStatus = false
 				}
@@ -659,21 +585,13 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 						return err
 					}
 
-					buyerUSDTAssetBalance := buyer.AssetBalances[order.AsserUSDT]
-					buyerUSDTAssetBalance.AvailableBalance = new(big.Int).Add(buyerUSDTAssetBalance.AvailableBalance, amount)
-					buyer.AssetBalances[order.AsserUSDT] = buyerUSDTAssetBalance
+					buyer.AddAvailableBalance(order.AsserUSDT, amount)
 
-					sellerUSDTAssetBalance := seller.AssetBalances[order.AsserUSDT]
-					sellerUSDTAssetBalance.ReservedBalance = new(big.Int).Sub(sellerUSDTAssetBalance.ReservedBalance, amount)
-					seller.AssetBalances[order.AsserUSDT] = sellerUSDTAssetBalance
+					seller.SubReservedBalance(order.AsserUSDT, amount)
 
-					buyerFiatAssetBalance := buyer.AssetBalances[order.AssetFiat]
-					buyerFiatAssetBalance.ReservedBalance = new(big.Int).Sub(buyerFiatAssetBalance.ReservedBalance, fiatAmount)
-					buyer.AssetBalances[order.AssetFiat] = buyerFiatAssetBalance
+					buyer.SubReservedBalance(order.AssetFiat, fiatAmount)
 
-					sellerFiatAssetBalance := seller.AssetBalances[order.AssetFiat]
-					sellerFiatAssetBalance.AvailableBalance = new(big.Int).Add(fiatAmount, sellerFiatAssetBalance.AvailableBalance)
-					seller.AssetBalances[order.AssetFiat] = sellerFiatAssetBalance
+					seller.AddAvailableBalance(order.AssetFiat, fiatAmount)
 				}
 				if !sellerUSDTBalanceStatus && !buyerFiatBalanceStatus {
 					return fmt.Errorf("insufficient seller USDT balance: have %s, need %s \n insufficient buyer Fiat balance: have %v, need %v", seller.AssetBalances[order.AsserUSDT], totalCostUSDT.String(), buyerReservedFiatBalance, fiatAmount)
@@ -686,33 +604,6 @@ func (ex *Exchange) HandleMatches(bid bool, market order.Market, matches []limit
 
 			}
 		}
-
-		// if market == order.MarketETH {
-
-		// 	toAddress := crypto.PubkeyToAddress(toUser.ETHPrivateKey.PublicKey)
-
-		// 	//exchange ffees
-		// 	// exchangePublicKey := ex.PrivateKey.Public()
-		// 	// exchangePublicKeyECDSA, ok := exchangePublicKey.(*ecdsa.PublicKey)
-		// 	// if !ok {
-		// 	// 	return fmt.Errorf("error casting public key to ECDSA")
-		// 	// }
-
-		// 	amount := big.NewInt(int64(match.SizeFilled))
-
-		// 	err := transferETH(ex.EthClient, fromUser.ETHPrivateKey, toAddress, amount)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// } else if market == order.MarketBTC {
-
-		// 	err := transferBTC(ex.btcClient, fromUser.BTCAdress, toUser.BTCAdress, match.SizeFilled)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// } else {
-		// 	return fmt.Errorf("market does not supported")
-		// }
 
 	}
 

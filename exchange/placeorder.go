@@ -52,26 +52,34 @@ func (ex *Exchange) HandlePlaceLimitOrder(market order.Market, price float64, ne
 	ob := ex.Orderbook[market]
 	if newOrder.Bid {
 		quoteAmount := new(big.Int).Mul(big.NewInt(int64(price)), big.NewInt(int64(newOrder.Size)))
-		userQuoteAvailableBalance := user.AssetBalances[order.Asset(market.Quote)].AvailableBalance
-		if userQuoteAvailableBalance.Cmp(quoteAmount) < 0 {
-			return fmt.Errorf("insufficient user %s balance: have %s, need %s", market.Quote, userQuoteAvailableBalance, quoteAmount)
-		} else {
-			userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
-			userQuoteBalance.AvailableBalance = new(big.Int).Sub(userQuoteBalance.AvailableBalance, quoteAmount)
-			userQuoteBalance.ReservedBalance = new(big.Int).Add(userQuoteBalance.ReservedBalance, quoteAmount)
-			user.AssetBalances[order.Asset(market.Quote)] = userQuoteBalance
+		err := user.ReserveBalance(market, quoteAmount, newOrder.Bid)
+		if err != nil {
+			return err
 		}
+		// userQuoteAvailableBalance := user.AssetBalances[order.Asset(market.Quote)].AvailableBalance
+		// if userQuoteAvailableBalance.Cmp(quoteAmount) < 0 {
+		// 	return fmt.Errorf("insufficient user %s balance: have %s, need %s", market.Quote, userQuoteAvailableBalance, quoteAmount)
+		// } else {
+		// 	userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+		// 	userQuoteBalance.AvailableBalance = new(big.Int).Sub(userQuoteBalance.AvailableBalance, quoteAmount)
+		// 	userQuoteBalance.ReservedBalance = new(big.Int).Add(userQuoteBalance.ReservedBalance, quoteAmount)
+		// 	user.AssetBalances[order.Asset(market.Quote)] = userQuoteBalance
+		// }
 	} else {
 		BaseAmount := big.NewInt(int64(newOrder.Size))
-		userBaseBalance := user.AssetBalances[order.Asset(market.Base)].AvailableBalance
-		if userBaseBalance.Cmp(BaseAmount) < 0 {
-			return fmt.Errorf("insufficient user %s balance: have %s, need %s", market.Quote, userBaseBalance, BaseAmount)
-		} else {
-			userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
-			userBaseBalance.AvailableBalance = new(big.Int).Sub(userBaseBalance.AvailableBalance, BaseAmount)
-			userBaseBalance.ReservedBalance = new(big.Int).Add(userBaseBalance.ReservedBalance, BaseAmount)
-			user.AssetBalances[order.Asset(market.Base)] = userBaseBalance
+		err := user.ReserveBalance(market, BaseAmount, newOrder.Bid)
+		if err != nil {
+			return err
 		}
+		// userBaseBalance := user.AssetBalances[order.Asset(market.Base)].AvailableBalance
+		// if userBaseBalance.Cmp(BaseAmount) < 0 {
+		// 	return fmt.Errorf("insufficient user %s balance: have %s, need %s", market.Quote, userBaseBalance, BaseAmount)
+		// } else {
+		// 	userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+		// 	userBaseBalance.AvailableBalance = new(big.Int).Sub(userBaseBalance.AvailableBalance, BaseAmount)
+		// 	userBaseBalance.ReservedBalance = new(big.Int).Add(userBaseBalance.ReservedBalance, BaseAmount)
+		// 	user.AssetBalances[order.Asset(market.Base)] = userBaseBalance
+		// }
 	}
 	ob.PlaceLimitOrder(price, newOrder)
 
