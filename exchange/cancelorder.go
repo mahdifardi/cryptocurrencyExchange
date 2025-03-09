@@ -61,14 +61,18 @@ func (ex *Exchange) CancelOrder(c echo.Context) error {
 
 	if o.Bid {
 		quoteAmount := new(big.Int).Mul(big.NewInt(int64(o.Limit.Price)), big.NewInt(int64(o.Size)))
-		userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
-		userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
-		userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
+		user.SubReservedBalance(order.Asset(market.Quote), quoteAmount)
+		user.AddAvailableBalance(order.Asset(market.Quote), quoteAmount)
+		// userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+		// userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
+		// userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
 	} else {
 		baseAmount := big.NewInt(int64(o.Size))
-		userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
-		userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
-		userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
+		user.SubReservedBalance(order.Asset(market.Base), baseAmount)
+		user.AddAvailableBalance(order.Asset(market.Base), baseAmount)
+		// userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+		// userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
+		// userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
 	}
 
 	return c.JSON(http.StatusOK, CancelOrderResponse{
@@ -115,14 +119,18 @@ func (ex *Exchange) CancelStopLimitOrder(c echo.Context) error {
 
 			if stopLimitOrder.Bid {
 				quoteAmount := new(big.Int).Mul(big.NewInt(int64(stopLimitOrder.Price)), big.NewInt(int64(stopLimitOrder.Size)))
-				userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
-				userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
-				userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
+				user.SubReservedBalance(order.Asset(market.Quote), quoteAmount)
+				user.AddAvailableBalance(order.Asset(market.Quote), quoteAmount)
+				// userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+				// userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
+				// userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
 			} else {
 				baseAmount := big.NewInt(int64(stopLimitOrder.Size))
-				userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
-				userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
-				userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
+				user.SubReservedBalance(order.Asset(market.Base), baseAmount)
+				user.AddAvailableBalance(order.Asset(market.Base), baseAmount)
+				// userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+				// userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
+				// userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
 			}
 
 			return c.JSON(http.StatusOK, CancelOrderResponse{
@@ -174,14 +182,18 @@ func (ex *Exchange) CancelStopMarketOrder(c echo.Context) error {
 			ob.CancelStopOrder(stopMarketOrder)
 			if stopMarketOrder.Bid {
 				quoteAmount := new(big.Int).Mul(big.NewInt(int64(stopMarketOrder.Price)), big.NewInt(int64(stopMarketOrder.Size)))
-				userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
-				userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
-				userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
+				user.SubReservedBalance(order.Asset(market.Quote), quoteAmount)
+				user.AddAvailableBalance(order.Asset(market.Quote), quoteAmount)
+				// userQuoteBalance := user.AssetBalances[order.Asset(market.Quote)]
+				// userQuoteBalance.ReservedBalance = new(big.Int).Sub(userQuoteBalance.ReservedBalance, quoteAmount)
+				// userQuoteBalance.AvailableBalance = new(big.Int).Add(userQuoteBalance.AvailableBalance, quoteAmount)
 			} else {
 				baseAmount := big.NewInt(int64(stopMarketOrder.Size))
-				userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
-				userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
-				userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
+				user.SubReservedBalance(order.Asset(market.Base), baseAmount)
+				user.AddAvailableBalance(order.Asset(market.Base), baseAmount)
+				// userBaseBalance := user.AssetBalances[order.Asset(market.Base)]
+				// userBaseBalance.ReservedBalance = new(big.Int).Sub(userBaseBalance.ReservedBalance, baseAmount)
+				// userBaseBalance.AvailableBalance = new(big.Int).Add(userBaseBalance.AvailableBalance, baseAmount)
 			}
 			return c.JSON(http.StatusOK, CancelOrderResponse{
 				Msg: "stop market order canceled",
