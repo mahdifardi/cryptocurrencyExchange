@@ -1,1 +1,1 @@
-Centralized Exchange with Golang!
+Centralized Cryptocurrency Exchange with Golang!
