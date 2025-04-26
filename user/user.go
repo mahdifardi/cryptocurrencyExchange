@@ -34,15 +34,15 @@ func NewUser(ethPrivateKey string, btcAdress string, userId int64) *User {
 		ReservedBalance:  big.NewInt(0),
 	}
 
-	assetBalances[order.AsserBTC] = AssetBalance{
+	assetBalances[order.AssetBTC] = AssetBalance{
 		AvailableBalance: big.NewInt(1_000_000),
 		ReservedBalance:  big.NewInt(0),
 	}
-	assetBalances[order.AsserETH] = AssetBalance{
+	assetBalances[order.AssetETH] = AssetBalance{
 		AvailableBalance: big.NewInt(1_000_000_000_000_000_000),
 		ReservedBalance:  big.NewInt(0),
 	}
-	assetBalances[order.AsserUSDT] = AssetBalance{
+	assetBalances[order.AssetUSDT] = AssetBalance{
 		AvailableBalance: big.NewInt(1_000_000),
 		ReservedBalance:  big.NewInt(0),
 	}

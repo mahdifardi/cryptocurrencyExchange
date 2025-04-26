@@ -21,9 +21,9 @@ const (
 
 var Fiat string = "USD"
 
-var AsserETH Asset = "ETH"
-var AsserBTC Asset = "BTC"
-var AsserUSDT Asset = "USDT"
+var AssetETH Asset = "ETH"
+var AssetBTC Asset = "BTC"
+var AssetUSDT Asset = "USDT"
 var AssetFiat Asset = Asset(Fiat)
 
 // market pairs
